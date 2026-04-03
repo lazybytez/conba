@@ -1,0 +1,41 @@
+name: Git
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  verify_branch_name:
+    name: Verify Branch Name
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check branch name
+        env:
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          PATTERN='^(feature|fix|hotfix|release|renovate)/[a-zA-Z0-9-]+'
+          if [[ "$BRANCH" =~ $PATTERN ]]; then
+            echo "Branch name '$BRANCH' is valid."
+          else
+            echo "::error::Branch name '$BRANCH' does not match the required pattern: prefix/description"
+            echo "Allowed prefixes: feature, fix, hotfix, release, renovate"
+            exit 1
+          fi
+
+  verify_commit_messages:
+    name: Verify Commit Messages
+    if: github.actor != 'renovate[bot]' && !startsWith(github.head_ref, 'renovate/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Run commitlint
+        uses: wagoid/commitlint-github-action@v6
+        with:
+          configFile: commitlint.config.mjs
