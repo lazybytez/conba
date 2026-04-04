@@ -1,0 +1,14 @@
+version: "2"
+
+run:
+  go: "1.26"
+  timeout: 5m
+
+linters:
+  default: all
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+    - golines

@@ -10,3 +10,22 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+
+# Go build output
+bin/
+*.exe
+*.test
+*.out
+
+# Coverage
+coverage.out
+coverage.html
+
+# Vendor (if ever used)
+vendor/
+
+# Secrets
+.env
+.env.*
+*.pem
+*.key
