@@ -1,65 +1,170 @@
-# General Template
-
 <div align="center">
 
-[![License][gh-license-badge]][gh-license]
-[![Last Commit][gh-commit-badge]][gh-commit]
-[![Contributors][gh-contributors-badge]][gh-contributors]
-[![Stars][gh-stars-badge]][gh-stars]
+# Conba
+
+[![License][license-badge]][license-url]
+[![CI][ci-badge]][ci-url]
+[![Last Commit][commit-badge]][commit-url]
+
+**Con**tainer **Ba**ckup — automated Docker volume backups powered by restic.
 
 </div>
 
 ## Description
 
-General repository template for all projects by [Lazy Bytez][gh-team].
+Conba is a Go CLI tool that wraps [restic](https://restic.net/) to provide automated,
+configurable backups for Docker container volumes. It auto-discovers containers and their
+volumes, applies filtering rules, executes the appropriate backup strategy per container,
+and manages snapshot retention — all driven by a YAML config file with environment
+variable overrides and optional container labels.
 
-This template provides a standardized starting point with:
+## Features
 
-- Conventional commit enforcement via [commitlint](https://commitlint.js.org/)
-- Branch naming validation via GitHub Actions
-- Dependency updates via [Renovate](https://docs.renovatebot.com/)
-- EditorConfig for consistent formatting
-- Security policy and code ownership
+| Feature | Description |
+|---------|-------------|
+| Auto-discovery | Finds all running containers and their volume mounts via Docker API |
+| Label-driven config | Per-container backup strategy, retention, and commands via Docker labels |
+| Three backup strategies | Snapshot (default), Command + Snapshot (pre/post hooks), Stream (stdin pipe) |
+| Flexible filtering | Include/exclude by name, ID, regex, or labels; opt-in-only mode |
+| Retention management | Global policy with per-container overrides; wraps `restic forget --prune` |
+| Tagged snapshots | Every snapshot tagged with container name, ID, volume name, and hostname |
+| Environment overrides | All config values overridable via `CONBA_` prefixed env vars |
+| Structured logging | Human-readable or JSON output at configurable levels |
+
+## Requirements
+
+- Docker (or compatible runtime with Docker socket)
+- restic (installed separately for host binary; bundled in container image)
 
 ## Getting Started
 
-1. Click **Use this template** on GitHub to create a new repository.
-2. Update `commitlint.config.mjs` to add project-specific scopes.
-3. Update this `README.md` with your project's details.
-4. If your project is not MIT-licensed, replace the `LICENSE` file.
+Clone and build:
+
+```sh
+git clone https://github.com/lazybytez/conba.git
+cd conba
+make build
+```
+
+All Make targets run inside Docker containers — no local Go installation required.
+
+Create a config file (`conba.yaml`):
+
+```yaml
+restic:
+  repository: "s3:s3.amazonaws.com/my-bucket"
+  password_file: "/run/secrets/restic-password"
+
+runtime:
+  type: docker
+  docker:
+    host: "unix:///var/run/docker.sock"
+
+discovery:
+  opt_in_only: false
+
+retention:
+  keep_daily: 7
+  keep_weekly: 4
+  keep_monthly: 6
+  keep_yearly: 0
+
+logging:
+  level: "info"
+  format: "human"
+```
+
+Run a backup:
+
+```sh
+./bin/conba backup
+```
+
+## Container Labels
+
+Configure per-container behavior with Docker labels:
+
+| Label | Values | Default | Description |
+|-------|--------|---------|-------------|
+| `conba.enabled` | `true`, `false` | — | Override include/exclude filters |
+| `conba.strategy` | `snapshot`, `command-snapshot`, `stream` | `snapshot` | Backup strategy |
+| `conba.pre-command` | shell command | — | Pre-backup command (command-snapshot) |
+| `conba.post-command` | shell command | — | Post-backup command (command-snapshot) |
+| `conba.stream-command` | shell command | — | Stream command (stream strategy) |
+| `conba.stdin-filename` | filename | `stdin` | Filename for `--stdin-filename` |
+| `conba.retention` | `Nd,Nw,Nm,Ny` | global | Per-container retention override |
+| `conba.exclude-volumes` | comma-separated | — | Volume names to skip |
+
+## CLI Commands
+
+```
+conba backup              # Discover, filter, and backup all matching volumes
+conba backup --dry-run    # Show what would be backed up without executing
+conba forget              # Apply retention policies and prune
+conba snapshots           # List snapshots
+conba version             # Print version info
+```
+
+## Development
+
+All build operations run inside Docker containers via Make:
+
+```sh
+make build       # Build the binary
+make test        # Run tests with race detector
+make lint        # Run golangci-lint
+make coverage    # Run tests with coverage report
+make fmt         # Format code
+make clean       # Remove build artifacts
+```
+
+### Branching
+
+| Branch | Purpose |
+|--------|---------|
+| `main` | Stable — all PRs target here |
+| `feature/*` | New features |
+| `fix/*` | Bug fixes |
+
+### Commit Messages
+
+Conventional commits enforced via [commitlint](https://commitlint.js.org/):
+
+```
+prefix(scope): subject
+```
+
+Prefixes: `feat`, `fix`, `build`, `chore`, `ci`, `docs`, `perf`, `refactor`, `revert`, `style`, `test`, `sec`
 
 ## Contributing
 
-If you want to take part in contribution, like fixing issues and contributing directly to the code base, please visit
-the [How to Contribute][gh-contribute] document.
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Useful Links
 
-[License][gh-license] -
-[Contributing][gh-contribute] -
-[Code of Conduct][gh-codeofconduct] -
-[Issues][gh-issues] -
-[Pull Requests][gh-pulls]
+[License][license-url] -
+[Contributing](CONTRIBUTING.md) -
+[Code of Conduct][codeofconduct-url] -
+[Security](SECURITY.md) -
+[Issues][issues-url] -
+[Pull Requests][pulls-url]
 
 <hr>
 
-###### Copyright (c) [Lazy Bytez][gh-team]. All rights reserved | Licensed under the MIT license.
+###### Copyright (c) [Lazy Bytez][team-url]. All rights reserved | Licensed under the MIT license.
 
 <!-- Badges -->
 
-[gh-license-badge]: https://img.shields.io/github/license/lazybytez/general-template?style=for-the-badge&colorA=302D41&colorB=a6e3a1
-[gh-commit-badge]: https://img.shields.io/github/last-commit/lazybytez/general-template?style=for-the-badge&colorA=302D41&colorB=cba6f7
-[gh-contributors-badge]: https://img.shields.io/github/contributors/lazybytez/general-template?style=for-the-badge&colorA=302D41&colorB=89dceb
-[gh-stars-badge]: https://img.shields.io/github/stars/lazybytez/general-template?style=for-the-badge&colorA=302D41&colorB=f9e2af
+[license-badge]: https://img.shields.io/github/license/lazybytez/conba?style=for-the-badge&colorA=302D41&colorB=a6e3a1
+[ci-badge]: https://img.shields.io/github/actions/workflow/status/lazybytez/conba/go.yml?style=for-the-badge&colorA=302D41&colorB=89b4fa&label=CI
+[commit-badge]: https://img.shields.io/github/last-commit/lazybytez/conba?style=for-the-badge&colorA=302D41&colorB=cba6f7
 
 <!-- Links -->
 
-[gh-license]: https://github.com/lazybytez/general-template/blob/main/LICENSE
-[gh-commit]: https://github.com/lazybytez/general-template/commits/main
-[gh-contributors]: https://github.com/lazybytez/general-template/graphs/contributors
-[gh-stars]: https://github.com/lazybytez/general-template/stargazers
-[gh-contribute]: https://github.com/lazybytez/.github/blob/main/docs/CONTRIBUTING.md
-[gh-codeofconduct]: https://github.com/lazybytez/.github/blob/main/docs/CODE_OF_CONDUCT.md
-[gh-issues]: https://github.com/lazybytez/general-template/issues
-[gh-pulls]: https://github.com/lazybytez/general-template/pulls
-[gh-team]: https://github.com/lazybytez
+[license-url]: https://github.com/lazybytez/conba/blob/main/LICENSE
+[ci-url]: https://github.com/lazybytez/conba/actions/workflows/go.yml
+[commit-url]: https://github.com/lazybytez/conba/commits/main
+[codeofconduct-url]: https://github.com/lazybytez/.github/blob/main/docs/CODE_OF_CONDUCT.md
+[issues-url]: https://github.com/lazybytez/conba/issues
+[pulls-url]: https://github.com/lazybytez/conba/pulls
+[team-url]: https://github.com/lazybytez
