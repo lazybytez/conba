@@ -4,6 +4,7 @@ import (
 	"testing"
 )
 
+//nolint:paralleltest // subtests mutate package-level version var
 func TestVersionString(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -22,15 +23,16 @@ func TestVersionString(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
 			original := version
-			version = tt.version
+			version = test.version
+
 			t.Cleanup(func() { version = original })
 
 			got := versionString()
-			if got != tt.want {
-				t.Errorf("versionString() = %q, want %q", got, tt.want)
+			if got != test.want {
+				t.Errorf("versionString() = %q, want %q", got, test.want)
 			}
 		})
 	}

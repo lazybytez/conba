@@ -5,7 +5,12 @@ run:
   timeout: 5m
 
 linters:
-  enable-all: true
+  default: all
 
 formatters:
-  enable-all: true
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+    - golines

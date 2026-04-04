@@ -1,7 +1,7 @@
 // Package main provides the conba CLI entrypoint.
 package main
 
-import "fmt"
+import "log"
 
 var version = "dev"
 
@@ -10,5 +10,5 @@ func versionString() string {
 }
 
 func main() {
-	fmt.Println(versionString())
+	log.Println(versionString())
 }
