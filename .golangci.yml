@@ -1,0 +1,23 @@
+version: "2"
+
+run:
+  go: "1.26"
+  timeout: 5m
+
+linters:
+  enable:
+    - govet
+    - errcheck
+    - staticcheck
+    - ineffassign
+    - unused
+    - revive
+    - misspell
+    - bodyclose
+    - noctx
+    - exhaustive
+
+formatters:
+  enable:
+    - goimports
+    - gofmt

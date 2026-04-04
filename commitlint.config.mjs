@@ -19,8 +19,22 @@ export default {
         "sec",
       ],
     ],
-    // TODO: extend with project-specific scopes
-    "scope-enum": [2, "always", ["deps", "devops"]],
+    "scope-enum": [
+      2,
+      "always",
+      [
+        "deps",
+        "devops",
+        "cli",
+        "backup",
+        "config",
+        "docker",
+        "restic",
+        "filter",
+        "retention",
+        "logging",
+      ],
+    ],
     "subject-max-length": [2, "always", 50],
   },
 };
