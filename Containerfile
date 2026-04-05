@@ -15,7 +15,7 @@ ARG restic_version
 
 WORKDIR /build
 
-COPY --link go.mod go.sum* ./
+COPY --link go.mod go.sum ./
 RUN go mod download && go mod verify
 
 COPY --link . .
@@ -47,5 +47,4 @@ LABEL org.opencontainers.image.licenses="MIT"
 
 USER conba
 
-ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["/app/conba"]
+ENTRYPOINT ["/sbin/tini", "--", "/app/conba"]
