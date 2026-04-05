@@ -7,7 +7,6 @@ import (
 	"github.com/lazybytez/conba/internal/build"
 )
 
-//nolint:paralleltest // subtests mutate package-level vars
 func TestComputeVersionString(t *testing.T) {
 	tests := []struct {
 		name      string
