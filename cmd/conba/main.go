@@ -1,14 +1,19 @@
 // Package main provides the conba CLI entrypoint.
 package main
 
-import "log"
+import (
+	"fmt"
+	"os"
 
-var version = "dev"
-
-func versionString() string {
-	return "conba v" + version
-}
+	"github.com/lazybytez/conba/internal/build"
+)
 
 func main() {
-	log.Println(versionString())
+	_, _ = fmt.Fprintf(
+		os.Stdout,
+		"conba %s (go: %s, restic: %s)\n",
+		build.ComputeVersionString(),
+		build.GoVersion(),
+		build.ResticVersion,
+	)
 }

@@ -6,6 +6,14 @@ run:
 
 linters:
   default: all
+  settings:
+    depguard:
+      rules:
+        main:
+          list-mode: lax
+          deny:
+            - pkg: "io/ioutil"
+              desc: "deprecated: use io and os packages instead"
 
 formatters:
   enable:

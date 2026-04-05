@@ -1,37 +1,31 @@
-# conba — Docker-based build targets for Go project
-# All Go commands run inside containers; no local Go installation required.
+# conba — project root Makefile
 
-GO_IMAGE    ?= golang:1.26
-LINT_IMAGE  ?= golangci/golangci-lint:v2.11.4
+include devops/make/go.mk
+include devops/make/docker.mk
 
-DOCKER_RUN  := docker run --rm \
-	-v $(CURDIR):/app \
-	-v conba-gomod:/go/pkg/mod \
-	-v conba-gobuild:/root/.cache/go-build \
-	-w /app
+.DEFAULT_GOAL := help
 
-.PHONY: build test lint coverage fmt clean
+.PHONY: build test lint help
 
-build:
-	$(DOCKER_RUN) -e CGO_ENABLED=0 $(GO_IMAGE) \
-		go build -buildvcs=false -o bin/conba ./cmd/conba
+build: go/build ## Alias for go/build
+test: go/test ## Alias for go/test
+lint: go/lint ## Alias for go/lint
 
-test:
-	$(DOCKER_RUN) $(GO_IMAGE) \
-		go test -race -v ./...
-
-lint:
-	$(DOCKER_RUN) $(LINT_IMAGE) \
-		golangci-lint run ./...
-
-coverage:
-	$(DOCKER_RUN) $(GO_IMAGE) \
-		sh -c 'go test -race -coverprofile=coverage.out ./... && go tool cover -func=coverage.out'
-
-fmt:
-	$(DOCKER_RUN) $(GO_IMAGE) \
-		sh -c 'gofmt -w . && if command -v goimports > /dev/null 2>&1; then goimports -w .; fi'
-
-clean:
-	rm -rf bin/
-	rm -f coverage.out
+help: ## Show available targets
+	@echo "=== conba ==="
+	@echo ""
+	@echo "  Go targets:"
+	@echo "    make go/build       Build the conba binary with version injection"
+	@echo "    make go/test        Run tests with race detector"
+	@echo "    make go/lint        Run golangci-lint"
+	@echo "    make go/coverage    Run tests with coverage report"
+	@echo "    make go/fmt         Format code"
+	@echo "    make go/clean       Remove build artifacts"
+	@echo ""
+	@echo "  Docker targets:"
+	@echo "    make docker/build   Build the container image"
+	@echo ""
+	@echo "  Aliases:"
+	@echo "    make build          Alias for go/build"
+	@echo "    make test           Alias for go/test"
+	@echo "    make lint           Alias for go/lint"
