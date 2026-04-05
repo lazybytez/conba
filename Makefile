@@ -1,10 +1,19 @@
 # conba — project root Makefile
 
-# Shared variables
-MODULE         ?= github.com/lazybytez/conba
-VERSION        ?= edge
-COMMIT_SHA     ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
-RESTIC_VERSION ?= unknown
+# Variables
+MODULE            ?= github.com/lazybytez/conba
+VERSION           ?= edge
+COMMIT_SHA        ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
+RESTIC_VERSION    ?= unknown
+GO_IMAGE          ?= golang:1.26
+LINT_IMAGE        ?= golangci/golangci-lint:v2.11.4
+DOCKER_EXECUTABLE ?= docker
+IMAGE_NAME        ?= ghcr.io/lazybytez/conba
+IMAGE_TAG         ?= edge
+
+DOCKER_RUN ?= docker run --rm \
+	-v $(CURDIR):/app \
+	-w /app
 
 include devops/make/go.mk
 include devops/make/docker.mk

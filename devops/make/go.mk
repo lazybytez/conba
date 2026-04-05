@@ -1,13 +1,6 @@
 # conba — Go build targets (Docker-based)
 # All Go commands run inside containers; no local Go installation required.
 
-GO_IMAGE   ?= golang:1.26
-LINT_IMAGE ?= golangci/golangci-lint:v2.11.4
-
-DOCKER_RUN ?= docker run --rm \
-	-v $(CURDIR):/app \
-	-w /app
-
 .PHONY: go/build go/test go/lint go/coverage go/fmt go/clean
 
 # Build the conba binary with version injection

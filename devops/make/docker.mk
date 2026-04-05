@@ -1,9 +1,5 @@
 # conba — Docker image build targets
 
-DOCKER_EXECUTABLE ?= docker
-IMAGE_NAME        ?= ghcr.io/lazybytez/conba
-IMAGE_TAG         ?= edge
-
 .PHONY: docker/build
 
 # Build the container image
