@@ -3,8 +3,6 @@
 DOCKER_EXECUTABLE ?= docker
 IMAGE_NAME        ?= conba
 IMAGE_TAG         ?= edge
-COMMIT_SHA        ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
-RESTIC_VERSION    ?= 0.18.1
 
 .PHONY: docker/build
 

@@ -1,5 +1,11 @@
 # conba — project root Makefile
 
+# Shared variables
+MODULE         ?= github.com/lazybytez/conba
+VERSION        ?= edge
+COMMIT_SHA     ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
+RESTIC_VERSION ?= 0.18.1
+
 include devops/make/go.mk
 include devops/make/docker.mk
 
