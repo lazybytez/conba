@@ -6,7 +6,8 @@ IMAGE_TAG         ?= edge
 
 .PHONY: docker/build
 
-docker/build: ## Build the container image
+# Build the container image
+docker/build:
 	$(DOCKER_EXECUTABLE) build \
 		-f Containerfile \
 		--build-arg app_version=$(IMAGE_TAG) \

@@ -13,11 +13,15 @@ include devops/make/docker.mk
 
 .PHONY: build test lint help
 
-build: go/build ## Alias for go/build
-test: go/test ## Alias for go/test
-lint: go/lint ## Alias for go/lint
+# Alias for go/build
+build: go/build
+# Alias for go/test
+test: go/test
+# Alias for go/lint
+lint: go/lint
 
-help: ## Show available targets
+# Show available targets
+help:
 	@echo "=== conba ==="
 	@echo ""
 	@echo "  Go targets:"
