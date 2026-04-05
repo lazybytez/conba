@@ -11,7 +11,7 @@ FROM docker.io/library/golang:${go_version}-alpine AS builder
 
 ARG app_version=edge
 ARG build_commit_sha=unknown
-ARG restic_version=0.18.1
+ARG restic_version
 
 WORKDIR /build
 
