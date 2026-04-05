@@ -4,7 +4,7 @@
 MODULE            ?= github.com/lazybytez/conba
 VERSION           ?= edge
 COMMIT_SHA        ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
-RESTIC_VERSION    ?= unknown
+RESTIC_VERSION    ?= 0.18.1
 GO_IMAGE          ?= golang:1.26
 LINT_IMAGE        ?= golangci/golangci-lint:v2.11.4
 DOCKER_EXECUTABLE ?= docker

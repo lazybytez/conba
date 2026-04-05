@@ -1,11 +1,13 @@
-# Global ARG — single source of truth for restic version
+# Global ARGs — single source of truth for base image versions
+ARG go_version=1.26
+ARG alpine_version=3.23
 ARG restic_version=0.18.1
 
 # Stage 0: Source the pinned restic binary
 FROM docker.io/restic/restic:${restic_version} AS restic
 
 # Stage 1: Build the conba binary
-FROM docker.io/library/golang:1.26-alpine AS builder
+FROM docker.io/library/golang:${go_version}-alpine AS builder
 
 ARG app_version=edge
 ARG build_commit_sha=unknown
@@ -22,7 +24,7 @@ RUN CGO_ENABLED=0 go build -buildvcs=false \
     -o /build/conba ./cmd/conba
 
 # Stage 2: Minimal runtime image
-FROM docker.io/library/alpine:3.21 AS base
+FROM docker.io/library/alpine:${alpine_version} AS base
 
 ARG container_uid=1000
 ARG container_gid=1000
