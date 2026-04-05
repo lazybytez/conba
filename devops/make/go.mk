@@ -6,8 +6,6 @@ LINT_IMAGE ?= golangci/golangci-lint:v2.11.4
 
 DOCKER_RUN ?= docker run --rm \
 	-v $(CURDIR):/app \
-	-v conba-gomod:/go/pkg/mod \
-	-v conba-gobuild:/root/.cache/go-build \
 	-w /app
 
 .PHONY: go/build go/test go/lint go/coverage go/fmt go/clean
