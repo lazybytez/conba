@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/lazybytez/conba/internal/config"
+	"github.com/lazybytez/conba/internal/logging"
 	"github.com/spf13/cobra"
 )
 
@@ -20,11 +21,18 @@ func NewRootCommand() *cobra.Command {
 			"It reads a declarative config and runs backup and restore operations.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
-		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
-			_, err := config.Load(cfgFile)
+		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+			cfg, err := config.Load(cfgFile)
 			if err != nil {
 				return fmt.Errorf("load config: %w", err)
 			}
+
+			logger, err := logging.New(cfg.Logging)
+			if err != nil {
+				return fmt.Errorf("init logger: %w", err)
+			}
+
+			cmd.SetContext(logging.WithLogger(cmd.Context(), logger))
 
 			return nil
 		},
