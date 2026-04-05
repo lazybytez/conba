@@ -46,6 +46,42 @@ func TestLoadDefaults(t *testing.T) {
 	if len(cfg.Discovery.Exclude.Names) != 0 {
 		t.Errorf("Discovery.Exclude.Names = %v, want empty", cfg.Discovery.Exclude.Names)
 	}
+
+	t.Run("restic defaults", func(t *testing.T) {
+		t.Parallel()
+		assertResticDefaults(t, cfg.Restic)
+	})
+}
+
+func assertResticDefaults(
+	t *testing.T,
+	restic config.ResticConfig,
+) {
+	t.Helper()
+
+	if restic.Binary != config.DefaultResticBinary {
+		t.Errorf("Binary = %q, want %q", restic.Binary, config.DefaultResticBinary)
+	}
+
+	if restic.Repository != "" {
+		t.Errorf("Repository = %q, want %q", restic.Repository, "")
+	}
+
+	if restic.Password != "" {
+		t.Errorf("Password = %q, want %q", restic.Password, "")
+	}
+
+	if restic.PasswordFile != "" {
+		t.Errorf("PasswordFile = %q, want %q", restic.PasswordFile, "")
+	}
+
+	if len(restic.ExtraArgs) != 0 {
+		t.Errorf("ExtraArgs = %v, want empty", restic.ExtraArgs)
+	}
+
+	if len(restic.Environment) != 0 {
+		t.Errorf("Environment = %v, want empty", restic.Environment)
+	}
 }
 
 func TestLoadFromYAMLFile(t *testing.T) {
@@ -233,6 +269,98 @@ func TestLoadDiscoveryFromYAML(t *testing.T) {
 
 	if len(cfg.Discovery.Exclude.IDs) != 0 {
 		t.Errorf("Exclude.IDs = %v, want empty", cfg.Discovery.Exclude.IDs)
+	}
+}
+
+func TestLoadResticFromYAML(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	cfgFile := filepath.Join(dir, "conba.yaml")
+	content := []byte(`restic:
+  binary: /usr/bin/restic
+  repository: "s3:s3.amazonaws.com/bucket"
+  password: "secret"
+  password_file: "/run/secrets/restic-pw"
+  extra_args: ["--verbose"]
+  environment:
+    AWS_ACCESS_KEY_ID: "AKIA..."
+    AWS_SECRET_ACCESS_KEY: "secret..."
+`)
+
+	writeErr := os.WriteFile(cfgFile, content, 0o600)
+	if writeErr != nil {
+		t.Fatalf("failed to write temp config: %v", writeErr)
+	}
+
+	cfg, err := config.Load(cfgFile)
+	if err != nil {
+		t.Fatalf("Load() returned unexpected error: %v", err)
+	}
+
+	if cfg.Restic.Binary != "/usr/bin/restic" {
+		t.Errorf("Restic.Binary = %q, want %q", cfg.Restic.Binary, "/usr/bin/restic")
+	}
+
+	if cfg.Restic.Repository != "s3:s3.amazonaws.com/bucket" {
+		t.Errorf(
+			"Restic.Repository = %q, want %q",
+			cfg.Restic.Repository,
+			"s3:s3.amazonaws.com/bucket",
+		)
+	}
+
+	if cfg.Restic.Password != "secret" {
+		t.Errorf("Restic.Password = %q, want %q", cfg.Restic.Password, "secret")
+	}
+
+	if cfg.Restic.PasswordFile != "/run/secrets/restic-pw" {
+		t.Errorf(
+			"Restic.PasswordFile = %q, want %q",
+			cfg.Restic.PasswordFile,
+			"/run/secrets/restic-pw",
+		)
+	}
+
+	if !slices.Equal(cfg.Restic.ExtraArgs, []string{"--verbose"}) {
+		t.Errorf("Restic.ExtraArgs = %v, want %v", cfg.Restic.ExtraArgs, []string{"--verbose"})
+	}
+
+	assertResticEnvironment(t, cfg.Restic.Environment, map[string]string{
+		"aws_access_key_id":     "AKIA...",
+		"aws_secret_access_key": "secret...",
+	})
+}
+
+func assertResticEnvironment(
+	t *testing.T,
+	got map[string]string,
+	want map[string]string,
+) {
+	t.Helper()
+
+	if len(got) != len(want) {
+		t.Fatalf(
+			"Environment has %d entries, want %d",
+			len(got),
+			len(want),
+		)
+	}
+
+	for key, wantVal := range want {
+		gotVal, ok := got[key]
+		if !ok {
+			t.Errorf("Environment missing key %q", key)
+		}
+
+		if gotVal != wantVal {
+			t.Errorf(
+				"Environment[%q] = %q, want %q",
+				key,
+				gotVal,
+				wantVal,
+			)
+		}
 	}
 }
 

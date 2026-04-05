@@ -21,6 +21,14 @@ func TestWithConfigAndFromContext(t *testing.T) {
 			Include:   config.FilterList{Names: nil, NamePatterns: nil, IDs: nil, IDPatterns: nil},
 			Exclude:   config.FilterList{Names: nil, NamePatterns: nil, IDs: nil, IDPatterns: nil},
 		},
+		Restic: config.ResticConfig{
+			Binary:       "",
+			Repository:   "",
+			Password:     "",
+			PasswordFile: "",
+			ExtraArgs:    nil,
+			Environment:  nil,
+		},
 	}
 	ctx := config.WithConfig(context.Background(), cfg)
 

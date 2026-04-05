@@ -11,6 +11,10 @@ linters:
       exclude:
         - "github.com/spf13/cobra\\.Command"
         - "github.com/docker/docker/api/types/container\\.ListOptions"
+    tagliatelle:
+      case:
+        rules:
+          json: snake
     depguard:
       rules:
         main:

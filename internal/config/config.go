@@ -33,6 +33,9 @@ const (
 // DefaultDockerHost is the default Docker daemon socket path.
 const DefaultDockerHost = "unix:///var/run/docker.sock"
 
+// DefaultResticBinary is the default restic binary name.
+const DefaultResticBinary = "restic"
+
 // ErrInvalidLogLevel indicates a log level value that is not supported.
 var ErrInvalidLogLevel = errors.New("invalid log level")
 
@@ -50,6 +53,17 @@ type Config struct {
 	Logging   LoggingConfig   `mapstructure:"logging"`
 	Runtime   RuntimeConfig   `mapstructure:"runtime"`
 	Discovery DiscoveryConfig `mapstructure:"discovery"`
+	Restic    ResticConfig    `mapstructure:"restic"`
+}
+
+// ResticConfig holds restic repository and authentication configuration.
+type ResticConfig struct {
+	Binary       string            `mapstructure:"binary"`
+	Repository   string            `mapstructure:"repository"`
+	Password     string            `mapstructure:"password"`
+	PasswordFile string            `mapstructure:"password_file"`
+	ExtraArgs    []string          `mapstructure:"extra_args"`
+	Environment  map[string]string `mapstructure:"environment"`
 }
 
 // DiscoveryConfig holds container discovery and filtering settings.
@@ -153,6 +167,7 @@ func setDefaults(viperInstance *viper.Viper) {
 	viperInstance.SetDefault("runtime.type", RuntimeTypeDocker)
 	viperInstance.SetDefault("runtime.docker.host", DefaultDockerHost)
 	viperInstance.SetDefault("discovery.opt_in_only", false)
+	viperInstance.SetDefault("restic.binary", DefaultResticBinary)
 }
 
 func (c *Config) validate() error {

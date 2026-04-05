@@ -1,0 +1,56 @@
+package restic
+
+import "strconv"
+
+// BuildInitArgs returns the argument slice for initialising a restic repository.
+func BuildInitArgs() []string {
+	return []string{"init"}
+}
+
+// BuildBackupArgs returns the argument slice for backing up the given path
+// with optional tags.
+func BuildBackupArgs(path string, tags []string) []string {
+	args := []string{"backup", path, "--json"}
+	args = appendTags(args, tags)
+
+	return args
+}
+
+// BuildSnapshotArgs returns the argument slice for listing snapshots
+// with optional tag filtering.
+func BuildSnapshotArgs(tags []string) []string {
+	args := []string{"snapshots", "--json"}
+	args = appendTags(args, tags)
+
+	return args
+}
+
+// BuildForgetArgs returns the argument slice for a forget-and-prune operation
+// with optional tags and retention policy. Only non-zero policy values produce
+// the corresponding --keep-* flag.
+func BuildForgetArgs(tags []string, policy ForgetPolicy) []string {
+	args := []string{"forget", "--prune", "--json"}
+	args = appendTags(args, tags)
+	args = appendKeep(args, "--keep-daily", policy.KeepDaily)
+	args = appendKeep(args, "--keep-weekly", policy.KeepWeekly)
+	args = appendKeep(args, "--keep-monthly", policy.KeepMonthly)
+	args = appendKeep(args, "--keep-yearly", policy.KeepYearly)
+
+	return args
+}
+
+func appendTags(args []string, tags []string) []string {
+	for _, tag := range tags {
+		args = append(args, "--tag", tag)
+	}
+
+	return args
+}
+
+func appendKeep(args []string, flag string, value int) []string {
+	if value <= 0 {
+		return args
+	}
+
+	return append(args, flag, strconv.Itoa(value))
+}
