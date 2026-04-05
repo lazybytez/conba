@@ -43,8 +43,22 @@ var ErrInvalidRuntimeType = errors.New("invalid runtime type")
 
 // Config is the top-level configuration structure for conba.
 type Config struct {
-	Logging LoggingConfig `mapstructure:"logging"`
-	Runtime RuntimeConfig `mapstructure:"runtime"`
+	Logging   LoggingConfig   `mapstructure:"logging"`
+	Runtime   RuntimeConfig   `mapstructure:"runtime"`
+	Discovery DiscoveryConfig `mapstructure:"discovery"`
+}
+
+// DiscoveryConfig holds container discovery and filtering settings.
+type DiscoveryConfig struct {
+	OptInOnly bool       `mapstructure:"opt_in_only"`
+	Include   FilterList `mapstructure:"include"`
+	Exclude   FilterList `mapstructure:"exclude"`
+}
+
+// FilterList holds name and ID patterns for container filtering.
+type FilterList struct {
+	Names []string `mapstructure:"names"`
+	IDs   []string `mapstructure:"ids"`
 }
 
 // RuntimeConfig holds runtime environment configuration.
@@ -132,6 +146,7 @@ func setDefaults(viperInstance *viper.Viper) {
 	viperInstance.SetDefault("logging.format", LogFormatHuman)
 	viperInstance.SetDefault("runtime.type", RuntimeTypeDocker)
 	viperInstance.SetDefault("runtime.docker.host", DefaultDockerHost)
+	viperInstance.SetDefault("discovery.opt_in_only", false)
 }
 
 func (c *Config) validate() error {

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/lazybytez/conba/internal/config"
@@ -32,6 +33,18 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.Runtime.Docker.Host != config.DefaultDockerHost {
 		t.Errorf("Runtime.Docker.Host = %q, want %q",
 			cfg.Runtime.Docker.Host, config.DefaultDockerHost)
+	}
+
+	if cfg.Discovery.OptInOnly {
+		t.Errorf("Discovery.OptInOnly = %v, want %v", cfg.Discovery.OptInOnly, false)
+	}
+
+	if len(cfg.Discovery.Include.Names) != 0 {
+		t.Errorf("Discovery.Include.Names = %v, want empty", cfg.Discovery.Include.Names)
+	}
+
+	if len(cfg.Discovery.Exclude.Names) != 0 {
+		t.Errorf("Discovery.Exclude.Names = %v, want empty", cfg.Discovery.Exclude.Names)
 	}
 }
 
@@ -134,6 +147,51 @@ func TestLoadValidation(t *testing.T) {
 				t.Errorf("error = %q, want %v", err.Error(), test.wantErr)
 			}
 		})
+	}
+}
+
+func TestLoadDiscoveryFromYAML(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	cfgFile := filepath.Join(dir, "conba.yaml")
+	content := []byte(`discovery:
+  opt_in_only: true
+  include:
+    names: ["myapp", "postgres"]
+    ids: ["abc123"]
+  exclude:
+    names: ["redis"]
+`)
+
+	writeErr := os.WriteFile(cfgFile, content, 0o600)
+	if writeErr != nil {
+		t.Fatalf("failed to write temp config: %v", writeErr)
+	}
+
+	cfg, err := config.Load(cfgFile)
+	if err != nil {
+		t.Fatalf("Load() returned unexpected error: %v", err)
+	}
+
+	if !cfg.Discovery.OptInOnly {
+		t.Error("Discovery.OptInOnly = false, want true")
+	}
+
+	if !slices.Equal(cfg.Discovery.Include.Names, []string{"myapp", "postgres"}) {
+		t.Errorf("Include.Names = %v", cfg.Discovery.Include.Names)
+	}
+
+	if !slices.Equal(cfg.Discovery.Include.IDs, []string{"abc123"}) {
+		t.Errorf("Include.IDs = %v", cfg.Discovery.Include.IDs)
+	}
+
+	if !slices.Equal(cfg.Discovery.Exclude.Names, []string{"redis"}) {
+		t.Errorf("Exclude.Names = %v", cfg.Discovery.Exclude.Names)
+	}
+
+	if len(cfg.Discovery.Exclude.IDs) != 0 {
+		t.Errorf("Exclude.IDs = %v, want empty", cfg.Discovery.Exclude.IDs)
 	}
 }
 
