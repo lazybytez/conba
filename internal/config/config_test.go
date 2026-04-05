@@ -24,6 +24,14 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.Logging.Format != config.LogFormatHuman {
 		t.Errorf("Logging.Format = %q, want %q", cfg.Logging.Format, config.LogFormatHuman)
 	}
+
+	if cfg.Runtime.Type != config.RuntimeTypeDocker {
+		t.Errorf("Runtime.Type = %q, want %q", cfg.Runtime.Type, config.RuntimeTypeDocker)
+	}
+
+	if cfg.Runtime.Docker.Host != "" {
+		t.Errorf("Runtime.Docker.Host = %q, want %q", cfg.Runtime.Docker.Host, "")
+	}
 }
 
 func TestLoadFromYAMLFile(t *testing.T) {
@@ -96,6 +104,11 @@ func TestLoadValidation(t *testing.T) {
 			name:    "invalid format xml",
 			yaml:    "logging:\n  level: info\n  format: xml\n",
 			wantErr: config.ErrInvalidLogFormat,
+		},
+		{
+			name:    "invalid runtime type podman",
+			yaml:    "runtime:\n  type: podman\n",
+			wantErr: config.ErrInvalidRuntimeType,
 		},
 	}
 

@@ -24,15 +24,35 @@ const (
 	LogFormatJSON  = "json"
 )
 
+// Supported runtime types.
+const (
+	RuntimeTypeDocker = "docker"
+)
+
 // ErrInvalidLogLevel indicates a log level value that is not supported.
 var ErrInvalidLogLevel = errors.New("invalid log level")
 
 // ErrInvalidLogFormat indicates a log format value that is not supported.
 var ErrInvalidLogFormat = errors.New("invalid log format")
 
+// ErrInvalidRuntimeType indicates a runtime type value that is not supported.
+var ErrInvalidRuntimeType = errors.New("invalid runtime type")
+
 // Config is the top-level configuration structure for conba.
 type Config struct {
 	Logging LoggingConfig `mapstructure:"logging"`
+	Runtime RuntimeConfig `mapstructure:"runtime"`
+}
+
+// RuntimeConfig holds runtime environment configuration.
+type RuntimeConfig struct {
+	Type   string       `mapstructure:"type"`
+	Docker DockerConfig `mapstructure:"docker"`
+}
+
+// DockerConfig holds Docker-specific runtime configuration.
+type DockerConfig struct {
+	Host string `mapstructure:"host"`
 }
 
 // LoggingConfig holds logging-related configuration values.
@@ -73,11 +93,11 @@ func Load(cfgFile string) (*Config, error) {
 	return &cfg, nil
 }
 
-func readConfigFile(v *viper.Viper, cfgFile string) error {
+func readConfigFile(viperInstance *viper.Viper, cfgFile string) error {
 	if cfgFile != "" {
-		v.SetConfigFile(cfgFile)
+		viperInstance.SetConfigFile(cfgFile)
 
-		err := v.ReadInConfig()
+		err := viperInstance.ReadInConfig()
 		if err != nil {
 			return fmt.Errorf("reading config: %w", err)
 		}
@@ -85,13 +105,13 @@ func readConfigFile(v *viper.Viper, cfgFile string) error {
 		return nil
 	}
 
-	v.SetConfigName("conba")
-	v.SetConfigType("yaml")
-	v.AddConfigPath(".")
-	v.AddConfigPath("$HOME/.config/conba")
-	v.AddConfigPath("/etc/conba")
+	viperInstance.SetConfigName("conba")
+	viperInstance.SetConfigType("yaml")
+	viperInstance.AddConfigPath(".")
+	viperInstance.AddConfigPath("$HOME/.config/conba")
+	viperInstance.AddConfigPath("/etc/conba")
 
-	err := v.ReadInConfig()
+	err := viperInstance.ReadInConfig()
 	if err == nil {
 		return nil
 	}
@@ -104,9 +124,11 @@ func readConfigFile(v *viper.Viper, cfgFile string) error {
 	return nil
 }
 
-func setDefaults(v *viper.Viper) {
-	v.SetDefault("logging.level", LogLevelInfo)
-	v.SetDefault("logging.format", LogFormatHuman)
+func setDefaults(viperInstance *viper.Viper) {
+	viperInstance.SetDefault("logging.level", LogLevelInfo)
+	viperInstance.SetDefault("logging.format", LogFormatHuman)
+	viperInstance.SetDefault("runtime.type", RuntimeTypeDocker)
+	viperInstance.SetDefault("runtime.docker.host", "")
 }
 
 func (c *Config) validate() error {
@@ -129,6 +151,15 @@ func (c *Config) validate() error {
 			ErrInvalidLogFormat,
 			c.Logging.Format,
 			LogFormatHuman, LogFormatJSON,
+		)
+	}
+
+	if c.Runtime.Type != RuntimeTypeDocker {
+		return fmt.Errorf(
+			"%w: %q must be %q",
+			ErrInvalidRuntimeType,
+			c.Runtime.Type,
+			RuntimeTypeDocker,
 		)
 	}
 

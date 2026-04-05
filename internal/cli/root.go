@@ -32,7 +32,9 @@ func NewRootCommand() *cobra.Command {
 				return fmt.Errorf("init logger: %w", err)
 			}
 
-			cmd.SetContext(logging.WithLogger(cmd.Context(), logger))
+			ctx := config.WithConfig(cmd.Context(), cfg)
+			ctx = logging.WithLogger(ctx, logger)
+			cmd.SetContext(ctx)
 
 			return nil
 		},
@@ -40,6 +42,7 @@ func NewRootCommand() *cobra.Command {
 
 	cmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "path to config file")
 	cmd.AddCommand(NewVersionCommand())
+	cmd.AddCommand(NewInspectCommand())
 
 	return cmd
 }
