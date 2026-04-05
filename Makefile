@@ -11,7 +11,7 @@ DOCKER_EXECUTABLE ?= docker
 IMAGE_NAME        ?= ghcr.io/lazybytez/conba
 IMAGE_TAG         ?= edge
 
-DOCKER_RUN ?= $(DOCKER_EXECUTABLE) run --rm \
+DOCKER_RUN := $(DOCKER_EXECUTABLE) run --rm \
 	-v $(CURDIR):/app \
 	-w /app
 

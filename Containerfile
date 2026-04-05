@@ -36,9 +36,8 @@ RUN addgroup -g "${container_gid}" conba && \
 
 WORKDIR /app
 
-COPY --from=builder --link /build/conba ./conba
-COPY --from=restic --link /usr/bin/restic ./restic
-RUN chmod 755 conba restic
+COPY --from=builder --link --chmod=755 /build/conba ./conba
+COPY --from=restic --link --chmod=755 /usr/bin/restic ./restic
 
 LABEL org.opencontainers.image.title="conba"
 LABEL org.opencontainers.image.description="A simple restic-based container volume backup tool"
