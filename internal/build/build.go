@@ -14,7 +14,7 @@ var CommitSHA = "unknown" //nolint:gochecknoglobals // ldflags requires package-
 
 // ResticVersion is the pinned restic version bundled in the container image.
 // Injected via ldflags in container builds, defaults to the pinned version.
-var ResticVersion = "0.18.1" //nolint:gochecknoglobals // ldflags requires package-level var
+var ResticVersion = "unknown" //nolint:gochecknoglobals // ldflags requires package-level var
 
 // FormatVersion returns a human-readable version string for the given
 // version and commit SHA. Edge builds include the SHA, releases do not.
