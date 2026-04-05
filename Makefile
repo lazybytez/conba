@@ -1,37 +1,50 @@
-# conba — Docker-based build targets for Go project
-# All Go commands run inside containers; no local Go installation required.
+# conba — project root Makefile
 
-GO_IMAGE    ?= golang:1.26
-LINT_IMAGE  ?= golangci/golangci-lint:v2.11.4
+# Variables
+MODULE            ?= github.com/lazybytez/conba
+VERSION           ?= edge
+COMMIT_SHA        ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
+RESTIC_VERSION    ?= 0.18.1
+GO_IMAGE          ?= golang:1.26
+LINT_IMAGE        ?= golangci/golangci-lint:v2.11.4
+DOCKER_EXECUTABLE ?= docker
+IMAGE_NAME        ?= ghcr.io/lazybytez/conba
+IMAGE_TAG         ?= edge
 
-DOCKER_RUN  := docker run --rm \
+DOCKER_RUN := $(DOCKER_EXECUTABLE) run --rm \
 	-v $(CURDIR):/app \
-	-v conba-gomod:/go/pkg/mod \
-	-v conba-gobuild:/root/.cache/go-build \
 	-w /app
 
-.PHONY: build test lint coverage fmt clean
+include devops/make/go.mk
+include devops/make/docker.mk
 
-build:
-	$(DOCKER_RUN) -e CGO_ENABLED=0 $(GO_IMAGE) \
-		go build -buildvcs=false -o bin/conba ./cmd/conba
+.DEFAULT_GOAL := help
 
-test:
-	$(DOCKER_RUN) $(GO_IMAGE) \
-		go test -race -v ./...
+.PHONY: build test lint help
 
-lint:
-	$(DOCKER_RUN) $(LINT_IMAGE) \
-		golangci-lint run ./...
+# Alias for go/build
+build: go/build
+# Alias for go/test
+test: go/test
+# Alias for go/lint
+lint: go/lint
 
-coverage:
-	$(DOCKER_RUN) $(GO_IMAGE) \
-		sh -c 'go test -race -coverprofile=coverage.out ./... && go tool cover -func=coverage.out'
-
-fmt:
-	$(DOCKER_RUN) $(GO_IMAGE) \
-		sh -c 'gofmt -w . && if command -v goimports > /dev/null 2>&1; then goimports -w .; fi'
-
-clean:
-	rm -rf bin/
-	rm -f coverage.out
+# Show available targets
+help:
+	@echo "=== conba ==="
+	@echo ""
+	@echo "  Go targets:"
+	@echo "    make go/build       Build the conba binary with version injection"
+	@echo "    make go/test        Run tests with race detector"
+	@echo "    make go/lint        Run golangci-lint"
+	@echo "    make go/coverage    Run tests with coverage report"
+	@echo "    make go/fmt         Format code"
+	@echo "    make go/clean       Remove build artifacts"
+	@echo ""
+	@echo "  Docker targets:"
+	@echo "    make docker/build   Build the container image"
+	@echo ""
+	@echo "  Aliases:"
+	@echo "    make build          Alias for go/build"
+	@echo "    make test           Alias for go/test"
+	@echo "    make lint           Alias for go/lint"
