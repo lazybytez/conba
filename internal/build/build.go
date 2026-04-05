@@ -16,14 +16,19 @@ var CommitSHA = "unknown"
 // Injected via ldflags in container builds, defaults to the pinned version.
 var ResticVersion = "0.18.1"
 
-// ComputeVersionString returns a human-readable version string.
-// For edge builds it includes the commit SHA, for releases it returns the version as-is.
-func ComputeVersionString() string {
-	if Version == "edge" {
-		return "edge<" + CommitSHA + ">"
+// FormatVersion returns a human-readable version string for the given
+// version and commit SHA. Edge builds include the SHA, releases do not.
+func FormatVersion(version, commitSHA string) string {
+	if version == "edge" {
+		return "edge<" + commitSHA + ">"
 	}
 
-	return Version
+	return version
+}
+
+// ComputeVersionString returns the version string using the injected build values.
+func ComputeVersionString() string {
+	return FormatVersion(Version, CommitSHA)
 }
 
 // GoVersion returns the Go runtime version used to compile the binary.

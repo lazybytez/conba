@@ -19,9 +19,6 @@ linters:
       - path: internal/build/build\.go
         linters:
           - gochecknoglobals
-      - path: _test\.go
-        linters:
-          - paralleltest
 
 formatters:
   enable:

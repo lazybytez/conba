@@ -7,7 +7,9 @@ import (
 	"github.com/lazybytez/conba/internal/build"
 )
 
-func TestComputeVersionString(t *testing.T) {
+func TestFormatVersion(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		version   string
@@ -30,22 +32,22 @@ func TestComputeVersionString(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			origVersion := build.Version
-			origCommit := build.CommitSHA
+			t.Parallel()
 
-			build.Version = test.version
-			build.CommitSHA = test.commitSHA
-
-			t.Cleanup(func() {
-				build.Version = origVersion
-				build.CommitSHA = origCommit
-			})
-
-			got := build.ComputeVersionString()
+			got := build.FormatVersion(test.version, test.commitSHA)
 			if got != test.want {
-				t.Errorf("ComputeVersionString() = %q, want %q", got, test.want)
+				t.Errorf("FormatVersion() = %q, want %q", got, test.want)
 			}
 		})
+	}
+}
+
+func TestComputeVersionString(t *testing.T) {
+	t.Parallel()
+
+	got := build.ComputeVersionString()
+	if got == "" {
+		t.Fatal("ComputeVersionString() returned empty string")
 	}
 }
 
