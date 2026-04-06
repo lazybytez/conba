@@ -20,7 +20,7 @@ func New(cfg config.LoggingConfig) (*zap.Logger, error) {
 	var zapCfg zap.Config
 
 	switch cfg.Format {
-	case "json":
+	case config.LogFormatJSON:
 		zapCfg = zap.NewProductionConfig()
 	default:
 		zapCfg = zap.NewDevelopmentConfig()
