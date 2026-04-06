@@ -53,22 +53,9 @@ func Load(cfgFile string) (*Config, error) {
 	viperInstance.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viperInstance.AutomaticEnv()
 
-	if cfgFile != "" {
-		viperInstance.SetConfigFile(cfgFile)
-	} else {
-		viperInstance.SetConfigName("conba")
-		viperInstance.SetConfigType("yaml")
-		viperInstance.AddConfigPath(".")
-		viperInstance.AddConfigPath("$HOME/.config/conba")
-		viperInstance.AddConfigPath("/etc/conba")
-	}
-
-	err := viperInstance.ReadInConfig()
+	err := readConfigFile(viperInstance, cfgFile)
 	if err != nil {
-		var lookupErr viper.ConfigFileNotFoundError
-		if cfgFile != "" || !errors.As(err, &lookupErr) {
-			return nil, fmt.Errorf("reading config: %w", err)
-		}
+		return nil, err
 	}
 
 	var cfg Config
@@ -84,6 +71,37 @@ func Load(cfgFile string) (*Config, error) {
 	}
 
 	return &cfg, nil
+}
+
+func readConfigFile(v *viper.Viper, cfgFile string) error {
+	if cfgFile != "" {
+		v.SetConfigFile(cfgFile)
+
+		err := v.ReadInConfig()
+		if err != nil {
+			return fmt.Errorf("reading config: %w", err)
+		}
+
+		return nil
+	}
+
+	v.SetConfigName("conba")
+	v.SetConfigType("yaml")
+	v.AddConfigPath(".")
+	v.AddConfigPath("$HOME/.config/conba")
+	v.AddConfigPath("/etc/conba")
+
+	err := v.ReadInConfig()
+	if err == nil {
+		return nil
+	}
+
+	var lookupErr viper.ConfigFileNotFoundError
+	if !errors.As(err, &lookupErr) {
+		return fmt.Errorf("reading config: %w", err)
+	}
+
+	return nil
 }
 
 func setDefaults(v *viper.Viper) {
