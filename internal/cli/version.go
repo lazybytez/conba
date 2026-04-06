@@ -15,19 +15,21 @@ func NewVersionCommand() *cobra.Command {
 		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
 			return nil
 		},
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			_, err := fmt.Fprintf(
-				cmd.OutOrStdout(),
-				"conba %s (go: %s, restic: %s)\n",
-				build.ComputeVersionString(),
-				build.GoVersion(),
-				build.ResticVersion,
-			)
-			if err != nil {
-				return fmt.Errorf("writing version output: %w", err)
-			}
-
-			return nil
-		},
+		RunE: runVersion,
 	}
+}
+
+func runVersion(cmd *cobra.Command, _ []string) error {
+	_, err := fmt.Fprintf(
+		cmd.OutOrStdout(),
+		"conba %s (go: %s, restic: %s)\n",
+		build.ComputeVersionString(),
+		build.GoVersion(),
+		build.ResticVersion,
+	)
+	if err != nil {
+		return fmt.Errorf("writing version output: %w", err)
+	}
+
+	return nil
 }
