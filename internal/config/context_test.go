@@ -18,8 +18,8 @@ func TestWithConfigAndFromContext(t *testing.T) {
 		},
 		Discovery: config.DiscoveryConfig{
 			OptInOnly: false,
-			Include:   config.FilterList{Names: nil, IDs: nil},
-			Exclude:   config.FilterList{Names: nil, IDs: nil},
+			Include:   config.FilterList{Names: nil, NamePatterns: nil, IDs: nil, IDPatterns: nil},
+			Exclude:   config.FilterList{Names: nil, NamePatterns: nil, IDs: nil, IDPatterns: nil},
 		},
 	}
 	ctx := config.WithConfig(context.Background(), cfg)

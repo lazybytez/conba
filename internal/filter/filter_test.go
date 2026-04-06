@@ -12,8 +12,8 @@ import (
 func emptyConfig() config.DiscoveryConfig {
 	return config.DiscoveryConfig{
 		OptInOnly: false,
-		Include:   config.FilterList{Names: nil, IDs: nil},
-		Exclude:   config.FilterList{Names: nil, IDs: nil},
+		Include:   config.FilterList{Names: nil, NamePatterns: nil, IDs: nil, IDPatterns: nil},
+		Exclude:   config.FilterList{Names: nil, NamePatterns: nil, IDs: nil, IDPatterns: nil},
 	}
 }
 
@@ -60,7 +60,7 @@ func TestApply_DefaultInclude(t *testing.T) {
 func TestApply_DisabledByLabel(t *testing.T) {
 	t.Parallel()
 
-	labels := map[string]string{"conba.enabled": "false"}
+	labels := map[string]string{filter.LabelEnabled: filter.LabelValueFalse}
 	targets := []discovery.Target{
 		makeTarget("c1", "app", labels, "data", "/data"),
 		makeTarget("c1", "app", labels, "logs", "/logs"),
@@ -89,15 +89,17 @@ func TestApply_DisabledByLabel(t *testing.T) {
 func TestApply_EnabledOverridesExcludeList(t *testing.T) {
 	t.Parallel()
 
-	labels := map[string]string{"conba.enabled": "true"}
+	labels := map[string]string{filter.LabelEnabled: filter.LabelValueTrue}
 	targets := []discovery.Target{
 		makeTarget("c1", "app", labels, "data", "/data"),
 	}
 
 	cfg := config.DiscoveryConfig{
 		OptInOnly: false,
-		Include:   config.FilterList{Names: nil, IDs: nil},
-		Exclude:   config.FilterList{Names: []string{"app"}, IDs: nil},
+		Include:   config.FilterList{Names: nil, NamePatterns: nil, IDs: nil, IDPatterns: nil},
+		Exclude: config.FilterList{
+			Names: []string{"app"}, NamePatterns: nil, IDs: nil, IDPatterns: nil,
+		},
 	}
 
 	result := filter.Apply(targets, cfg)
@@ -114,7 +116,7 @@ func TestApply_EnabledOverridesExcludeList(t *testing.T) {
 func TestApply_ExcludeVolumesLabel(t *testing.T) {
 	t.Parallel()
 
-	labels := map[string]string{"conba.exclude-volumes": "logs, temp"}
+	labels := map[string]string{filter.LabelExcludeVolumes: "logs, temp"}
 	targets := []discovery.Target{
 		makeTarget("c1", "app", labels, "data", "/data"),
 		makeTarget("c1", "app", labels, "logs", "/logs"),
@@ -155,8 +157,10 @@ func TestApply_IncludeListByName(t *testing.T) {
 
 	cfg := config.DiscoveryConfig{
 		OptInOnly: false,
-		Include:   config.FilterList{Names: []string{"app"}, IDs: nil},
-		Exclude:   config.FilterList{Names: nil, IDs: nil},
+		Include: config.FilterList{
+			Names: []string{"app"}, NamePatterns: nil, IDs: nil, IDPatterns: nil,
+		},
+		Exclude: config.FilterList{Names: nil, NamePatterns: nil, IDs: nil, IDPatterns: nil},
 	}
 
 	result := filter.Apply(targets, cfg)
@@ -194,8 +198,10 @@ func TestApply_IncludeListByID(t *testing.T) {
 
 	cfg := config.DiscoveryConfig{
 		OptInOnly: false,
-		Include:   config.FilterList{Names: nil, IDs: []string{"abc123"}},
-		Exclude:   config.FilterList{Names: nil, IDs: nil},
+		Include: config.FilterList{
+			Names: nil, NamePatterns: nil, IDs: []string{"abc123"}, IDPatterns: nil,
+		},
+		Exclude: config.FilterList{Names: nil, NamePatterns: nil, IDs: nil, IDPatterns: nil},
 	}
 
 	result := filter.Apply(targets, cfg)
@@ -226,8 +232,10 @@ func TestApply_ExcludeListByName(t *testing.T) {
 
 	cfg := config.DiscoveryConfig{
 		OptInOnly: false,
-		Include:   config.FilterList{Names: nil, IDs: nil},
-		Exclude:   config.FilterList{Names: []string{"db"}, IDs: nil},
+		Include:   config.FilterList{Names: nil, NamePatterns: nil, IDs: nil, IDPatterns: nil},
+		Exclude: config.FilterList{
+			Names: []string{"db"}, NamePatterns: nil, IDs: nil, IDPatterns: nil,
+		},
 	}
 
 	result := filter.Apply(targets, cfg)
@@ -258,8 +266,10 @@ func TestApply_ExcludeListByID(t *testing.T) {
 
 	cfg := config.DiscoveryConfig{
 		OptInOnly: false,
-		Include:   config.FilterList{Names: nil, IDs: nil},
-		Exclude:   config.FilterList{Names: nil, IDs: []string{"def456"}},
+		Include:   config.FilterList{Names: nil, NamePatterns: nil, IDs: nil, IDPatterns: nil},
+		Exclude: config.FilterList{
+			Names: nil, NamePatterns: nil, IDs: []string{"def456"}, IDPatterns: nil,
+		},
 	}
 
 	result := filter.Apply(targets, cfg)
@@ -286,7 +296,7 @@ func TestApply_OptInMode(t *testing.T) {
 	targets := []discovery.Target{
 		makeTarget(
 			"c1", "app",
-			map[string]string{"conba.enabled": "true"},
+			map[string]string{filter.LabelEnabled: filter.LabelValueTrue},
 			"data", "/data",
 		),
 		makeTarget("c2", "db", map[string]string{}, "pgdata", "/var/lib/pg"),
@@ -294,8 +304,8 @@ func TestApply_OptInMode(t *testing.T) {
 
 	cfg := config.DiscoveryConfig{
 		OptInOnly: true,
-		Include:   config.FilterList{Names: nil, IDs: nil},
-		Exclude:   config.FilterList{Names: nil, IDs: nil},
+		Include:   config.FilterList{Names: nil, NamePatterns: nil, IDs: nil, IDPatterns: nil},
+		Exclude:   config.FilterList{Names: nil, NamePatterns: nil, IDs: nil, IDPatterns: nil},
 	}
 
 	result := filter.Apply(targets, cfg)
@@ -324,8 +334,8 @@ func TestApply_EnabledWithExcludeVolumes(t *testing.T) {
 	t.Parallel()
 
 	labels := map[string]string{
-		"conba.enabled":         "true",
-		"conba.exclude-volumes": "logs",
+		filter.LabelEnabled:        filter.LabelValueTrue,
+		filter.LabelExcludeVolumes: "logs",
 	}
 	targets := []discovery.Target{
 		makeTarget("c1", "app", labels, "data", "/data"),
@@ -334,8 +344,8 @@ func TestApply_EnabledWithExcludeVolumes(t *testing.T) {
 
 	cfg := config.DiscoveryConfig{
 		OptInOnly: true,
-		Include:   config.FilterList{Names: nil, IDs: nil},
-		Exclude:   config.FilterList{Names: nil, IDs: nil},
+		Include:   config.FilterList{Names: nil, NamePatterns: nil, IDs: nil, IDPatterns: nil},
+		Exclude:   config.FilterList{Names: nil, NamePatterns: nil, IDs: nil, IDPatterns: nil},
 	}
 
 	result := filter.Apply(targets, cfg)
@@ -374,5 +384,114 @@ func TestApply_EmptyTargets(t *testing.T) {
 
 	if len(result.Excluded) != 0 {
 		t.Errorf("want 0 excluded, got %d", len(result.Excluded))
+	}
+}
+
+func TestApply_IncludeByNamePattern(t *testing.T) {
+	t.Parallel()
+
+	targets := []discovery.Target{
+		makeTarget("c1", "app-web", nil, "data", "/data"),
+		makeTarget("c2", "db-postgres", nil, "pgdata", "/var/lib/pg"),
+		makeTarget("c3", "app-api", nil, "logs", "/logs"),
+	}
+
+	cfg := config.DiscoveryConfig{
+		OptInOnly: false,
+		Include: config.FilterList{
+			Names: nil, NamePatterns: []string{"^app-"}, IDs: nil, IDPatterns: nil,
+		},
+		Exclude: config.FilterList{Names: nil, NamePatterns: nil, IDs: nil, IDPatterns: nil},
+	}
+
+	result := filter.Apply(targets, cfg)
+
+	if len(result.Included) != 2 {
+		t.Fatalf("want 2 included, got %d", len(result.Included))
+	}
+
+	if len(result.Excluded) != 1 {
+		t.Fatalf("want 1 excluded, got %d", len(result.Excluded))
+	}
+}
+
+func TestApply_ExcludeByNamePattern(t *testing.T) {
+	t.Parallel()
+
+	targets := []discovery.Target{
+		makeTarget("c1", "app-web", nil, "data", "/data"),
+		makeTarget("c2", "db-postgres", nil, "pgdata", "/var/lib/pg"),
+	}
+
+	cfg := config.DiscoveryConfig{
+		OptInOnly: false,
+		Include:   config.FilterList{Names: nil, NamePatterns: nil, IDs: nil, IDPatterns: nil},
+		Exclude: config.FilterList{
+			Names: nil, NamePatterns: []string{"^db-"}, IDs: nil, IDPatterns: nil,
+		},
+	}
+
+	result := filter.Apply(targets, cfg)
+
+	if len(result.Included) != 1 {
+		t.Fatalf("want 1 included, got %d", len(result.Included))
+	}
+
+	if len(result.Excluded) != 1 {
+		t.Fatalf("want 1 excluded, got %d", len(result.Excluded))
+	}
+}
+
+func TestApply_IncludeByIDPattern(t *testing.T) {
+	t.Parallel()
+
+	targets := []discovery.Target{
+		makeTarget("abc123", "app", nil, "data", "/data"),
+		makeTarget("def456", "db", nil, "pgdata", "/var/lib/pg"),
+	}
+
+	cfg := config.DiscoveryConfig{
+		OptInOnly: false,
+		Include: config.FilterList{
+			Names: nil, NamePatterns: nil, IDs: nil, IDPatterns: []string{"^abc"},
+		},
+		Exclude: config.FilterList{Names: nil, NamePatterns: nil, IDs: nil, IDPatterns: nil},
+	}
+
+	result := filter.Apply(targets, cfg)
+
+	if len(result.Included) != 1 {
+		t.Fatalf("want 1 included, got %d", len(result.Included))
+	}
+
+	if result.Included[0].Container.ID != "abc123" {
+		t.Errorf("want abc123, got %s", result.Included[0].Container.ID)
+	}
+}
+
+func TestApply_ExcludeByIDPattern(t *testing.T) {
+	t.Parallel()
+
+	targets := []discovery.Target{
+		makeTarget("abc123", "app", nil, "data", "/data"),
+		makeTarget("def456", "db", nil, "pgdata", "/var/lib/pg"),
+	}
+
+	cfg := config.DiscoveryConfig{
+		OptInOnly: false,
+		Include:   config.FilterList{Names: nil, NamePatterns: nil, IDs: nil, IDPatterns: nil},
+		Exclude: config.FilterList{
+			Names: nil, NamePatterns: nil, IDs: nil, IDPatterns: []string{"^def"},
+		},
+	}
+
+	result := filter.Apply(targets, cfg)
+
+	if len(result.Included) != 1 {
+		t.Fatalf("want 1 included, got %d", len(result.Included))
+	}
+
+	if len(result.Excluded) != 1 {
+		t.Fatalf("want 1 excluded, got %d", len(result.Excluded))
 	}
 }

@@ -5,6 +5,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -38,6 +39,9 @@ var ErrInvalidLogLevel = errors.New("invalid log level")
 // ErrInvalidLogFormat indicates a log format value that is not supported.
 var ErrInvalidLogFormat = errors.New("invalid log format")
 
+// ErrInvalidFilterPattern indicates a regex pattern that failed to compile.
+var ErrInvalidFilterPattern = errors.New("invalid filter pattern")
+
 // ErrInvalidRuntimeType indicates a runtime type value that is not supported.
 var ErrInvalidRuntimeType = errors.New("invalid runtime type")
 
@@ -55,10 +59,12 @@ type DiscoveryConfig struct {
 	Exclude   FilterList `mapstructure:"exclude"`
 }
 
-// FilterList holds name and ID patterns for container filtering.
+// FilterList holds exact matches and regex patterns for container filtering.
 type FilterList struct {
-	Names []string `mapstructure:"names"`
-	IDs   []string `mapstructure:"ids"`
+	Names        []string `mapstructure:"names"`
+	NamePatterns []string `mapstructure:"name_patterns"`
+	IDs          []string `mapstructure:"ids"`
+	IDPatterns   []string `mapstructure:"id_patterns"`
 }
 
 // RuntimeConfig holds runtime environment configuration.
@@ -179,6 +185,40 @@ func (c *Config) validate() error {
 			c.Runtime.Type,
 			RuntimeTypeDocker,
 		)
+	}
+
+	err := validateFilterPatterns(c.Discovery.Include)
+	if err != nil {
+		return fmt.Errorf("discovery.include: %w", err)
+	}
+
+	err = validateFilterPatterns(c.Discovery.Exclude)
+	if err != nil {
+		return fmt.Errorf("discovery.exclude: %w", err)
+	}
+
+	return nil
+}
+
+func validateFilterPatterns(list FilterList) error {
+	for _, pattern := range list.NamePatterns {
+		_, err := regexp.Compile(pattern)
+		if err != nil {
+			return fmt.Errorf(
+				"%w: name_patterns %q: %w",
+				ErrInvalidFilterPattern, pattern, err,
+			)
+		}
+	}
+
+	for _, pattern := range list.IDPatterns {
+		_, err := regexp.Compile(pattern)
+		if err != nil {
+			return fmt.Errorf(
+				"%w: id_patterns %q: %w",
+				ErrInvalidFilterPattern, pattern, err,
+			)
+		}
 	}
 
 	return nil

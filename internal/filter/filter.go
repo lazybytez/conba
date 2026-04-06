@@ -3,11 +3,24 @@
 package filter
 
 import (
+	"regexp"
 	"slices"
 	"strings"
 
 	"github.com/lazybytez/conba/internal/config"
 	"github.com/lazybytez/conba/internal/discovery"
+)
+
+// Container label keys used by the filter engine.
+const (
+	LabelEnabled        = "conba.enabled"
+	LabelExcludeVolumes = "conba.exclude-volumes"
+)
+
+// Label values for the enabled label.
+const (
+	LabelValueTrue  = "true"
+	LabelValueFalse = "false"
 )
 
 // Result holds the outcome of applying filters to discovery targets.
@@ -84,15 +97,15 @@ func evaluateContainerFilters(
 }
 
 func isDisabledByLabel(target discovery.Target) bool {
-	return target.Container.Labels["conba.enabled"] == "false"
+	return target.Container.Labels[LabelEnabled] == LabelValueFalse
 }
 
 func isEnabledByLabel(target discovery.Target) bool {
-	return target.Container.Labels["conba.enabled"] == "true"
+	return target.Container.Labels[LabelEnabled] == LabelValueTrue
 }
 
 func isExcludedByVolumeLabel(target discovery.Target) bool {
-	raw, ok := target.Container.Labels["conba.exclude-volumes"]
+	raw, ok := target.Container.Labels[LabelExcludeVolumes]
 	if !ok {
 		return false
 	}
@@ -110,12 +123,16 @@ func matchesIncludeList(
 	target discovery.Target,
 	cfg config.DiscoveryConfig,
 ) bool {
-	if len(cfg.Include.Names) == 0 && len(cfg.Include.IDs) == 0 {
+	hasRules := len(cfg.Include.Names) > 0 ||
+		len(cfg.Include.NamePatterns) > 0 ||
+		len(cfg.Include.IDs) > 0 ||
+		len(cfg.Include.IDPatterns) > 0
+
+	if !hasRules {
 		return true
 	}
 
-	return slices.Contains(cfg.Include.Names, target.Container.Name) ||
-		slices.Contains(cfg.Include.IDs, target.Container.ID)
+	return matchesFilterList(target, cfg.Include)
 }
 
 func matchesExcludeList(
@@ -128,11 +145,56 @@ func matchesExcludeList(
 		}
 	}
 
+	for _, pattern := range cfg.Exclude.NamePatterns {
+		if matchesPattern(pattern, target.Container.Name) {
+			return true, pattern
+		}
+	}
+
 	for _, id := range cfg.Exclude.IDs {
 		if id == target.Container.ID {
 			return true, id
 		}
 	}
 
+	for _, pattern := range cfg.Exclude.IDPatterns {
+		if matchesPattern(pattern, target.Container.ID) {
+			return true, pattern
+		}
+	}
+
 	return false, ""
+}
+
+func matchesFilterList(
+	target discovery.Target,
+	list config.FilterList,
+) bool {
+	if slices.Contains(list.Names, target.Container.Name) {
+		return true
+	}
+
+	if slices.Contains(list.IDs, target.Container.ID) {
+		return true
+	}
+
+	for _, pattern := range list.NamePatterns {
+		if matchesPattern(pattern, target.Container.Name) {
+			return true
+		}
+	}
+
+	for _, pattern := range list.IDPatterns {
+		if matchesPattern(pattern, target.Container.ID) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func matchesPattern(pattern string, value string) bool {
+	matched, err := regexp.MatchString(pattern, value)
+
+	return err == nil && matched
 }

@@ -150,6 +150,47 @@ func TestLoadValidation(t *testing.T) {
 	}
 }
 
+func TestLoadValidation_InvalidFilterPatterns(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		yaml string
+	}{
+		{
+			name: "invalid include name pattern",
+			yaml: "discovery:\n  include:\n    name_patterns:\n      - \"[\"\n",
+		},
+		{
+			name: "invalid exclude id pattern",
+			yaml: "discovery:\n  exclude:\n    id_patterns:\n      - \"[\"\n",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			dir := t.TempDir()
+			cfgFile := filepath.Join(dir, "conba.yaml")
+
+			writeErr := os.WriteFile(cfgFile, []byte(test.yaml), 0o600)
+			if writeErr != nil {
+				t.Fatalf("failed to write temp config: %v", writeErr)
+			}
+
+			_, err := config.Load(cfgFile)
+			if err == nil {
+				t.Fatal("Load() expected error, got nil")
+			}
+
+			if !errors.Is(err, config.ErrInvalidFilterPattern) {
+				t.Errorf("error = %q, want %v", err.Error(), config.ErrInvalidFilterPattern)
+			}
+		})
+	}
+}
+
 func TestLoadDiscoveryFromYAML(t *testing.T) {
 	t.Parallel()
 
