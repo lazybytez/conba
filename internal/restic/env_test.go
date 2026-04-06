@@ -89,13 +89,13 @@ func TestBuildEnv_Environment(t *testing.T) {
 	t.Parallel()
 
 	cfg := testResticConfig("/repo", withPassword("secret"), withEnvironment(map[string]string{
-		"b_custom_var":      "two",
-		"aws_access_key_id": "AKID",
+		"b_custom_var":       "two",
+		"a_restic_cache_dir": "/tmp/cache",
 	}))
 
 	got := restic.BuildEnv(cfg)
 	want := []string{
-		"AWS_ACCESS_KEY_ID=AKID",
+		"A_RESTIC_CACHE_DIR=/tmp/cache",
 		"B_CUSTOM_VAR=two",
 		"RESTIC_PASSWORD=secret",
 		"RESTIC_REPOSITORY=/repo",

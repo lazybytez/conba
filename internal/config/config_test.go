@@ -279,13 +279,12 @@ func TestLoadResticFromYAML(t *testing.T) {
 	cfgFile := filepath.Join(dir, "conba.yaml")
 	content := []byte(`restic:
   binary: /usr/bin/restic
-  repository: "s3:s3.amazonaws.com/bucket"
+  repository: "/tmp/restic-test-repo"
   password: "secret"
   password_file: "/run/secrets/restic-pw"
   extra_args: ["--verbose"]
   environment:
-    AWS_ACCESS_KEY_ID: "AKIA..."
-    AWS_SECRET_ACCESS_KEY: "secret..."
+    RESTIC_CACHE_DIR: "/tmp/restic-cache"
 `)
 
 	writeErr := os.WriteFile(cfgFile, content, 0o600)
@@ -302,11 +301,11 @@ func TestLoadResticFromYAML(t *testing.T) {
 		t.Errorf("Restic.Binary = %q, want %q", cfg.Restic.Binary, "/usr/bin/restic")
 	}
 
-	if cfg.Restic.Repository != "s3:s3.amazonaws.com/bucket" {
+	if cfg.Restic.Repository != "/tmp/restic-test-repo" {
 		t.Errorf(
 			"Restic.Repository = %q, want %q",
 			cfg.Restic.Repository,
-			"s3:s3.amazonaws.com/bucket",
+			"/tmp/restic-test-repo",
 		)
 	}
 
@@ -327,8 +326,7 @@ func TestLoadResticFromYAML(t *testing.T) {
 	}
 
 	assertResticEnvironment(t, cfg.Restic.Environment, map[string]string{
-		"aws_access_key_id":     "AKIA...",
-		"aws_secret_access_key": "secret...",
+		"restic_cache_dir": "/tmp/restic-cache",
 	})
 }
 
