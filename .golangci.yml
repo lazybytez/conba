@@ -23,6 +23,12 @@ linters:
             - pkg: "io/ioutil"
               desc: "deprecated: use io and os packages instead"
 
+  exclusions:
+    rules:
+      - linters:
+          - paralleltest
+        path: internal/restic/(init|backup|snapshots|forget|integration)_test\.go
+
 formatters:
   enable:
     - gofumpt

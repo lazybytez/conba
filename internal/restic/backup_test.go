@@ -9,22 +9,31 @@ import (
 )
 
 func TestBackup_Success(t *testing.T) {
-	t.Parallel()
+	repoPath, password := newTestRepo(t)
+	client := newTestClient(t, repoPath, password)
 
-	client := newHelperClient(t, 0, "{}", "")
+	err := client.Init(context.Background())
+	if err != nil {
+		t.Fatalf("init repo: %v", err)
+	}
 
-	err := client.Backup(context.Background(), "/data", []string{"daily"})
+	dataDir := t.TempDir()
+	createTestFile(t, dataDir, "hello.txt", "hello world")
+
+	err = client.Backup(context.Background(), dataDir, []string{"test-tag"})
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 }
 
 func TestBackup_Failure(t *testing.T) {
-	t.Parallel()
+	repoPath, password := newTestRepo(t)
+	client := newTestClient(t, repoPath, password)
 
-	client := newHelperClient(t, 1, "", "repository does not exist")
+	dataDir := t.TempDir()
+	createTestFile(t, dataDir, "hello.txt", "hello world")
 
-	err := client.Backup(context.Background(), "/data", []string{"daily"})
+	err := client.Backup(context.Background(), dataDir, []string{"test-tag"})
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}

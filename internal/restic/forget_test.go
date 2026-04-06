@@ -3,31 +3,75 @@ package restic_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/lazybytez/conba/internal/restic"
 )
 
-func TestForget_Success(t *testing.T) {
-	t.Parallel()
+func createBackups(t *testing.T, client *restic.Client, dataDir string, tags []string, count int) {
+	t.Helper()
 
-	client := newHelperClient(t, 0, "", "")
+	ctx := context.Background()
 
-	err := client.Forget(context.Background(), []string{"container=app"}, restic.ForgetPolicy{
-		KeepDaily:   7,
-		KeepWeekly:  4,
-		KeepMonthly: 12,
-		KeepYearly:  3,
+	for idx := range count {
+		createTestFile(t, dataDir, fmt.Sprintf("file%d.txt", idx), fmt.Sprintf("v%d", idx))
+
+		err := client.Backup(ctx, dataDir, tags)
+		if err != nil {
+			t.Fatalf("backup %d: %v", idx+1, err)
+		}
+	}
+}
+
+func TestForget_ReducesSnapshots(t *testing.T) {
+	repoPath, password := newTestRepo(t)
+	client := newTestClient(t, repoPath, password)
+
+	ctx := context.Background()
+
+	err := client.Init(ctx)
+	if err != nil {
+		t.Fatalf("init repo: %v", err)
+	}
+
+	dataDir := t.TempDir()
+	tags := []string{"forget-test"}
+
+	createBackups(t, client, dataDir, tags, 3)
+
+	snapshots, err := client.Snapshots(ctx, tags)
+	if err != nil {
+		t.Fatalf("list snapshots before forget: %v", err)
+	}
+
+	if len(snapshots) != 3 {
+		t.Fatalf("expected 3 snapshots before forget, got %d", len(snapshots))
+	}
+
+	err = client.Forget(ctx, tags, restic.ForgetPolicy{
+		KeepDaily:   1,
+		KeepWeekly:  0,
+		KeepMonthly: 0,
+		KeepYearly:  0,
 	})
 	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
+		t.Fatalf("forget: %v", err)
+	}
+
+	snapshots, err = client.Snapshots(ctx, tags)
+	if err != nil {
+		t.Fatalf("list snapshots after forget: %v", err)
+	}
+
+	if len(snapshots) != 1 {
+		t.Errorf("expected 1 snapshot after forget, got %d", len(snapshots))
 	}
 }
 
 func TestForget_Failure(t *testing.T) {
-	t.Parallel()
-
-	client := newHelperClient(t, 1, "", "unable to prune")
+	repoPath, password := newTestRepo(t)
+	client := newTestClient(t, repoPath, password)
 
 	err := client.Forget(context.Background(), nil, restic.ForgetPolicy{
 		KeepDaily:   0,

@@ -6,6 +6,8 @@ VERSION           ?= edge
 COMMIT_SHA        ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 RESTIC_VERSION    ?= 0.18.1
 GO_IMAGE          ?= golang:1.26
+RESTIC_IMAGE      ?= restic/restic:$(RESTIC_VERSION)
+TEST_IMAGE        ?= conba-test:latest
 LINT_IMAGE        ?= golangci/golangci-lint:v2.11.4
 DOCKER_EXECUTABLE ?= docker
 IMAGE_NAME        ?= ghcr.io/lazybytez/conba
@@ -35,6 +37,7 @@ help:
 	@echo ""
 	@echo "  Go targets:"
 	@echo "    make go/build       Build the conba binary with version injection"
+	@echo "    make go/test-image  Build the test image (Go + restic)"
 	@echo "    make go/test        Run tests with race detector"
 	@echo "    make go/lint        Run golangci-lint"
 	@echo "    make go/coverage    Run tests with coverage report"
