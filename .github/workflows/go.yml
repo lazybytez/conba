@@ -38,6 +38,14 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Install restic
+        run: |
+          RESTIC_VERSION="0.18.1"
+          curl -fsSL "https://github.com/restic/restic/releases/download/v${RESTIC_VERSION}/restic_${RESTIC_VERSION}_linux_amd64.bz2" \
+            | bunzip2 > /usr/local/bin/restic
+          chmod +x /usr/local/bin/restic
+          restic version
+
       - name: Run tests
         run: go test -race -v ./...
 
