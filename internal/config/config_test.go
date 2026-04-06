@@ -17,12 +17,12 @@ func TestLoadDefaults(t *testing.T) {
 		t.Fatalf("Load() returned unexpected error: %v", err)
 	}
 
-	if cfg.Logging.Level != "info" {
-		t.Errorf("Logging.Level = %q, want %q", cfg.Logging.Level, "info")
+	if cfg.Logging.Level != config.LogLevelInfo {
+		t.Errorf("Logging.Level = %q, want %q", cfg.Logging.Level, config.LogLevelInfo)
 	}
 
-	if cfg.Logging.Format != "human" {
-		t.Errorf("Logging.Format = %q, want %q", cfg.Logging.Format, "human")
+	if cfg.Logging.Format != config.LogFormatHuman {
+		t.Errorf("Logging.Format = %q, want %q", cfg.Logging.Format, config.LogFormatHuman)
 	}
 }
 
@@ -43,29 +43,29 @@ func TestLoadFromYAMLFile(t *testing.T) {
 		t.Fatalf("Load() returned unexpected error: %v", err)
 	}
 
-	if cfg.Logging.Level != "debug" {
-		t.Errorf("Logging.Level = %q, want %q", cfg.Logging.Level, "debug")
+	if cfg.Logging.Level != config.LogLevelDebug {
+		t.Errorf("Logging.Level = %q, want %q", cfg.Logging.Level, config.LogLevelDebug)
 	}
 
-	if cfg.Logging.Format != "json" {
-		t.Errorf("Logging.Format = %q, want %q", cfg.Logging.Format, "json")
+	if cfg.Logging.Format != config.LogFormatJSON {
+		t.Errorf("Logging.Format = %q, want %q", cfg.Logging.Format, config.LogFormatJSON)
 	}
 }
 
 func TestLoadEnvOverride(t *testing.T) {
-	t.Setenv("CONBA_LOGGING_LEVEL", "debug")
+	t.Setenv("CONBA_LOGGING_LEVEL", config.LogLevelDebug)
 
 	cfg, err := config.Load("")
 	if err != nil {
 		t.Fatalf("Load() returned unexpected error: %v", err)
 	}
 
-	if cfg.Logging.Level != "debug" {
-		t.Errorf("Logging.Level = %q, want %q", cfg.Logging.Level, "debug")
+	if cfg.Logging.Level != config.LogLevelDebug {
+		t.Errorf("Logging.Level = %q, want %q", cfg.Logging.Level, config.LogLevelDebug)
 	}
 
-	if cfg.Logging.Format != "human" {
-		t.Errorf("Logging.Format = %q, want %q", cfg.Logging.Format, "human")
+	if cfg.Logging.Format != config.LogFormatHuman {
+		t.Errorf("Logging.Format = %q, want %q", cfg.Logging.Format, config.LogFormatHuman)
 	}
 }
 

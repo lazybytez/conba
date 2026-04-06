@@ -10,6 +10,20 @@ import (
 	"github.com/spf13/viper"
 )
 
+// Supported log levels.
+const (
+	LogLevelDebug = "debug"
+	LogLevelInfo  = "info"
+	LogLevelWarn  = "warn"
+	LogLevelError = "error"
+)
+
+// Supported log formats.
+const (
+	LogFormatHuman = "human"
+	LogFormatJSON  = "json"
+)
+
 // ErrInvalidLogLevel indicates a log level value that is not supported.
 var ErrInvalidLogLevel = errors.New("invalid log level")
 
@@ -33,8 +47,7 @@ type LoggingConfig struct {
 func Load(cfgFile string) (*Config, error) {
 	viperInstance := viper.New()
 
-	viperInstance.SetDefault("logging.level", "info")
-	viperInstance.SetDefault("logging.format", "human")
+	setDefaults(viperInstance)
 
 	viperInstance.SetEnvPrefix("CONBA")
 	viperInstance.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
@@ -73,24 +86,31 @@ func Load(cfgFile string) (*Config, error) {
 	return &cfg, nil
 }
 
+func setDefaults(v *viper.Viper) {
+	v.SetDefault("logging.level", LogLevelInfo)
+	v.SetDefault("logging.format", LogFormatHuman)
+}
+
 func (c *Config) validate() error {
 	switch c.Logging.Level {
-	case "debug", "info", "warn", "error":
+	case LogLevelDebug, LogLevelInfo, LogLevelWarn, LogLevelError:
 	default:
 		return fmt.Errorf(
-			"%w: %q must be one of debug, info, warn, error",
+			"%w: %q must be one of %s, %s, %s, %s",
 			ErrInvalidLogLevel,
 			c.Logging.Level,
+			LogLevelDebug, LogLevelInfo, LogLevelWarn, LogLevelError,
 		)
 	}
 
 	switch c.Logging.Format {
-	case "human", "json":
+	case LogFormatHuman, LogFormatJSON:
 	default:
 		return fmt.Errorf(
-			"%w: %q must be one of human, json",
+			"%w: %q must be one of %s, %s",
 			ErrInvalidLogFormat,
 			c.Logging.Format,
+			LogFormatHuman, LogFormatJSON,
 		)
 	}
 
