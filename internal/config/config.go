@@ -29,6 +29,9 @@ const (
 	RuntimeTypeDocker = "docker"
 )
 
+// DefaultDockerHost is the default Docker daemon socket path.
+const DefaultDockerHost = "unix:///var/run/docker.sock"
+
 // ErrInvalidLogLevel indicates a log level value that is not supported.
 var ErrInvalidLogLevel = errors.New("invalid log level")
 
@@ -128,7 +131,7 @@ func setDefaults(viperInstance *viper.Viper) {
 	viperInstance.SetDefault("logging.level", LogLevelInfo)
 	viperInstance.SetDefault("logging.format", LogFormatHuman)
 	viperInstance.SetDefault("runtime.type", RuntimeTypeDocker)
-	viperInstance.SetDefault("runtime.docker.host", "")
+	viperInstance.SetDefault("runtime.docker.host", DefaultDockerHost)
 }
 
 func (c *Config) validate() error {

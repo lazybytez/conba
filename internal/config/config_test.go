@@ -29,8 +29,9 @@ func TestLoadDefaults(t *testing.T) {
 		t.Errorf("Runtime.Type = %q, want %q", cfg.Runtime.Type, config.RuntimeTypeDocker)
 	}
 
-	if cfg.Runtime.Docker.Host != "" {
-		t.Errorf("Runtime.Docker.Host = %q, want %q", cfg.Runtime.Docker.Host, "")
+	if cfg.Runtime.Docker.Host != config.DefaultDockerHost {
+		t.Errorf("Runtime.Docker.Host = %q, want %q",
+			cfg.Runtime.Docker.Host, config.DefaultDockerHost)
 	}
 }
 
