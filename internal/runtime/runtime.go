@@ -12,9 +12,16 @@ type ContainerInfo struct {
 	Mounts []MountInfo
 }
 
+// Supported mount types.
+const (
+	MountTypeVolume = "volume"
+	MountTypeBind   = "bind"
+	MountTypeTmpfs  = "tmpfs"
+)
+
 // MountInfo describes a single mount point on a container.
 type MountInfo struct {
-	Type        string // "volume", "bind", "tmpfs"
+	Type        string
 	Name        string // volume name or bind source path
 	Destination string // container mount path
 	ReadOnly    bool

@@ -32,8 +32,18 @@ func TestDiscover_ExpandsMounts(t *testing.T) {
 				Name:   "app",
 				Labels: nil,
 				Mounts: []runtime.MountInfo{
-					{Type: "volume", Name: "data", Destination: "/data", ReadOnly: false},
-					{Type: "volume", Name: "logs", Destination: "/logs", ReadOnly: false},
+					{
+						Type:        runtime.MountTypeVolume,
+						Name:        "data",
+						Destination: "/data",
+						ReadOnly:    false,
+					},
+					{
+						Type:        runtime.MountTypeVolume,
+						Name:        "logs",
+						Destination: "/logs",
+						ReadOnly:    false,
+					},
 				},
 			},
 		},
@@ -68,8 +78,18 @@ func TestDiscover_SkipsTmpfs(t *testing.T) {
 				Name:   "app",
 				Labels: nil,
 				Mounts: []runtime.MountInfo{
-					{Type: "volume", Name: "data", Destination: "/data", ReadOnly: false},
-					{Type: "tmpfs", Name: "", Destination: "/tmp", ReadOnly: false},
+					{
+						Type:        runtime.MountTypeVolume,
+						Name:        "data",
+						Destination: "/data",
+						ReadOnly:    false,
+					},
+					{
+						Type:        runtime.MountTypeTmpfs,
+						Name:        "",
+						Destination: "/tmp",
+						ReadOnly:    false,
+					},
 				},
 			},
 		},
@@ -85,7 +105,7 @@ func TestDiscover_SkipsTmpfs(t *testing.T) {
 		t.Fatalf("want 1 target, got %d", len(targets))
 	}
 
-	if targets[0].Mount.Type != "volume" {
+	if targets[0].Mount.Type != runtime.MountTypeVolume {
 		t.Errorf("want volume, got %s", targets[0].Mount.Type)
 	}
 }
@@ -100,7 +120,12 @@ func TestDiscover_IncludesBindMounts(t *testing.T) {
 				Name:   "app",
 				Labels: nil,
 				Mounts: []runtime.MountInfo{
-					{Type: "bind", Name: "config", Destination: "/etc/app", ReadOnly: false},
+					{
+						Type:        runtime.MountTypeBind,
+						Name:        "config",
+						Destination: "/etc/app",
+						ReadOnly:    false,
+					},
 				},
 			},
 		},
@@ -116,7 +141,7 @@ func TestDiscover_IncludesBindMounts(t *testing.T) {
 		t.Fatalf("want 1 target, got %d", len(targets))
 	}
 
-	if targets[0].Mount.Type != "bind" {
+	if targets[0].Mount.Type != runtime.MountTypeBind {
 		t.Errorf("want bind, got %s", targets[0].Mount.Type)
 	}
 }

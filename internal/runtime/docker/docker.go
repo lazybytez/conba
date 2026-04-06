@@ -22,23 +22,12 @@ type Client struct {
 // the daemon. If host is empty, the client is configured from environment
 // variables (DOCKER_HOST, etc.). Otherwise the given host is used directly.
 func New(ctx context.Context, host string) (*Client, error) {
-	var (
-		docker *client.Client
-		err    error
-	)
-
-	if host == "" {
-		docker, err = client.NewClientWithOpts(
-			client.FromEnv,
-			client.WithAPIVersionNegotiation(),
-		)
-	} else {
-		docker, err = client.NewClientWithOpts(
-			client.WithHost(host),
-			client.WithAPIVersionNegotiation(),
-		)
+	opts := []client.Opt{
+		client.WithHost(host),
+		client.WithAPIVersionNegotiation(),
 	}
 
+	docker, err := client.NewClientWithOpts(opts...)
 	if err != nil {
 		return nil, fmt.Errorf("create docker client: %w", err)
 	}
@@ -102,7 +91,7 @@ func mapMounts(mounts []container.MountPoint) []runtime.MountInfo {
 
 	for _, mount := range mounts {
 		name := mount.Name
-		if mount.Type == "bind" {
+		if mount.Type == runtime.MountTypeBind {
 			name = mount.Source
 		}
 

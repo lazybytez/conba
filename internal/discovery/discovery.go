@@ -39,7 +39,7 @@ func Discover(ctx context.Context, rt runtime.Runtime) ([]Target, error) {
 
 func isEligible(m runtime.MountInfo) bool {
 	switch m.Type {
-	case "volume", "bind":
+	case runtime.MountTypeVolume, runtime.MountTypeBind:
 		return true
 	default:
 		return false
