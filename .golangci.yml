@@ -7,6 +7,9 @@ run:
 linters:
   default: all
   settings:
+    exhaustruct:
+      exclude:
+        - "github.com/spf13/cobra\\.Command"
     depguard:
       rules:
         main:

@@ -5,15 +5,13 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/lazybytez/conba/internal/build"
+	"github.com/lazybytez/conba/internal/cli"
 )
 
 func main() {
-	_, _ = fmt.Fprintf(
-		os.Stdout,
-		"conba %s (go: %s, restic: %s)\n",
-		build.ComputeVersionString(),
-		build.GoVersion(),
-		build.ResticVersion,
-	)
+	err := cli.Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
 }
