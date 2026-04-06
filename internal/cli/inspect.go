@@ -7,6 +7,7 @@ import (
 
 	"github.com/lazybytez/conba/internal/config"
 	"github.com/lazybytez/conba/internal/discovery"
+	"github.com/lazybytez/conba/internal/filter"
 	"github.com/lazybytez/conba/internal/logging"
 	"github.com/lazybytez/conba/internal/runtime/docker"
 	"github.com/spf13/cobra"
@@ -16,7 +17,7 @@ import (
 var errMissingConfig = errors.New("config not available in context")
 
 // NewInspectCommand creates the inspect subcommand that lists all
-// discovered containers and their volume mounts.
+// discovered containers and volumes with filter results.
 func NewInspectCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "inspect",
@@ -55,11 +56,13 @@ func runInspect(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("discover volumes: %w", err)
 	}
 
-	return printTargets(cmd.OutOrStdout(), targets)
+	result := filter.Apply(targets, cfg.Discovery)
+
+	return printResult(cmd.OutOrStdout(), result)
 }
 
-func printTargets(out io.Writer, targets []discovery.Target) error {
-	if len(targets) == 0 {
+func printResult(out io.Writer, result filter.Result) error {
+	if len(result.Included) == 0 && len(result.Excluded) == 0 {
 		_, err := fmt.Fprintln(out, "No containers with volumes found.")
 		if err != nil {
 			return fmt.Errorf("writing output: %w", err)
@@ -68,6 +71,42 @@ func printTargets(out io.Writer, targets []discovery.Target) error {
 		return nil
 	}
 
+	if len(result.Included) > 0 {
+		err := printSection(out, "Included", result.Included, nil)
+		if err != nil {
+			return err
+		}
+	}
+
+	if len(result.Excluded) > 0 {
+		err := printSection(out, "Excluded", nil, result.Excluded)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func printSection(
+	out io.Writer,
+	title string,
+	included []discovery.Target,
+	excluded []filter.Exclusion,
+) error {
+	_, err := fmt.Fprintf(out, "=== %s ===\n\n", title)
+	if err != nil {
+		return fmt.Errorf("writing output: %w", err)
+	}
+
+	if len(included) > 0 {
+		return printIncluded(out, included)
+	}
+
+	return printExcluded(out, excluded)
+}
+
+func printIncluded(out io.Writer, targets []discovery.Target) error {
 	grouped := groupByContainer(targets)
 
 	for _, group := range grouped {
@@ -91,6 +130,22 @@ func printTargets(out io.Writer, targets []discovery.Target) error {
 		}
 
 		_, err = fmt.Fprintln(out)
+		if err != nil {
+			return fmt.Errorf("writing output: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func printExcluded(out io.Writer, exclusions []filter.Exclusion) error {
+	for _, excl := range exclusions {
+		_, err := fmt.Fprintf(out, "%s (%s)  %s → %s\n  reason: %s\n\n",
+			excl.Target.Container.Name,
+			shortID(excl.Target.Container.ID),
+			excl.Target.Mount.Type,
+			excl.Target.Mount.Name,
+			excl.Reason)
 		if err != nil {
 			return fmt.Errorf("writing output: %w", err)
 		}

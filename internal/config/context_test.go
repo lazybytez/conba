@@ -16,6 +16,11 @@ func TestWithConfigAndFromContext(t *testing.T) {
 			Type:   config.RuntimeTypeDocker,
 			Docker: config.DockerConfig{Host: ""},
 		},
+		Discovery: config.DiscoveryConfig{
+			OptInOnly: false,
+			Include:   config.FilterList{Names: nil, NamePatterns: nil, IDs: nil, IDPatterns: nil},
+			Exclude:   config.FilterList{Names: nil, NamePatterns: nil, IDs: nil, IDPatterns: nil},
+		},
 	}
 	ctx := config.WithConfig(context.Background(), cfg)
 

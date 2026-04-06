@@ -5,6 +5,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -38,13 +39,32 @@ var ErrInvalidLogLevel = errors.New("invalid log level")
 // ErrInvalidLogFormat indicates a log format value that is not supported.
 var ErrInvalidLogFormat = errors.New("invalid log format")
 
+// ErrInvalidFilterPattern indicates a regex pattern that failed to compile.
+var ErrInvalidFilterPattern = errors.New("invalid filter pattern")
+
 // ErrInvalidRuntimeType indicates a runtime type value that is not supported.
 var ErrInvalidRuntimeType = errors.New("invalid runtime type")
 
 // Config is the top-level configuration structure for conba.
 type Config struct {
-	Logging LoggingConfig `mapstructure:"logging"`
-	Runtime RuntimeConfig `mapstructure:"runtime"`
+	Logging   LoggingConfig   `mapstructure:"logging"`
+	Runtime   RuntimeConfig   `mapstructure:"runtime"`
+	Discovery DiscoveryConfig `mapstructure:"discovery"`
+}
+
+// DiscoveryConfig holds container discovery and filtering settings.
+type DiscoveryConfig struct {
+	OptInOnly bool       `mapstructure:"opt_in_only"`
+	Include   FilterList `mapstructure:"include"`
+	Exclude   FilterList `mapstructure:"exclude"`
+}
+
+// FilterList holds exact matches and regex patterns for container filtering.
+type FilterList struct {
+	Names        []string `mapstructure:"names"`
+	NamePatterns []string `mapstructure:"name_patterns"`
+	IDs          []string `mapstructure:"ids"`
+	IDPatterns   []string `mapstructure:"id_patterns"`
 }
 
 // RuntimeConfig holds runtime environment configuration.
@@ -132,6 +152,7 @@ func setDefaults(viperInstance *viper.Viper) {
 	viperInstance.SetDefault("logging.format", LogFormatHuman)
 	viperInstance.SetDefault("runtime.type", RuntimeTypeDocker)
 	viperInstance.SetDefault("runtime.docker.host", DefaultDockerHost)
+	viperInstance.SetDefault("discovery.opt_in_only", false)
 }
 
 func (c *Config) validate() error {
@@ -164,6 +185,40 @@ func (c *Config) validate() error {
 			c.Runtime.Type,
 			RuntimeTypeDocker,
 		)
+	}
+
+	err := validateFilterPatterns(c.Discovery.Include)
+	if err != nil {
+		return fmt.Errorf("discovery.include: %w", err)
+	}
+
+	err = validateFilterPatterns(c.Discovery.Exclude)
+	if err != nil {
+		return fmt.Errorf("discovery.exclude: %w", err)
+	}
+
+	return nil
+}
+
+func validateFilterPatterns(list FilterList) error {
+	for _, pattern := range list.NamePatterns {
+		_, err := regexp.Compile(pattern)
+		if err != nil {
+			return fmt.Errorf(
+				"%w: name_patterns %q: %w",
+				ErrInvalidFilterPattern, pattern, err,
+			)
+		}
+	}
+
+	for _, pattern := range list.IDPatterns {
+		_, err := regexp.Compile(pattern)
+		if err != nil {
+			return fmt.Errorf(
+				"%w: id_patterns %q: %w",
+				ErrInvalidFilterPattern, pattern, err,
+			)
+		}
 	}
 
 	return nil
