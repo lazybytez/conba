@@ -387,7 +387,7 @@ func TestResticConfigValidate_PasswordFileValid(t *testing.T) {
 		Binary:       "restic",
 		Repository:   "/tmp/repo",
 		Password:     "",
-		PasswordFile: "/etc/restic/pass",
+		PasswordFile: "/tmp/passfile",
 		ExtraArgs:    nil,
 		Environment:  nil,
 	}
