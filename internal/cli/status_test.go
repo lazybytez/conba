@@ -34,66 +34,6 @@ func TestNewStatusCommand_Short(t *testing.T) {
 	}
 }
 
-func TestFormatSize_Bytes(t *testing.T) {
-	t.Parallel()
-
-	got := cli.FormatSize(500)
-
-	if got != "500 B" {
-		t.Errorf("FormatSize(500) = %q, want %q", got, "500 B")
-	}
-}
-
-func TestFormatSize_KiB(t *testing.T) {
-	t.Parallel()
-
-	got := cli.FormatSize(2048)
-
-	if got != "2.00 KiB" {
-		t.Errorf("FormatSize(2048) = %q, want %q", got, "2.00 KiB")
-	}
-}
-
-func TestFormatSize_MiB(t *testing.T) {
-	t.Parallel()
-
-	got := cli.FormatSize(5 * 1024 * 1024)
-
-	if got != "5.00 MiB" {
-		t.Errorf("FormatSize(5*1024*1024) = %q, want %q", got, "5.00 MiB")
-	}
-}
-
-func TestFormatSize_Zero(t *testing.T) {
-	t.Parallel()
-
-	got := cli.FormatSize(0)
-
-	if got != "0 B" {
-		t.Errorf("FormatSize(0) = %q, want %q", got, "0 B")
-	}
-}
-
-func TestFormatSize_GiB(t *testing.T) {
-	t.Parallel()
-
-	got := cli.FormatSize(3 * 1024 * 1024 * 1024)
-
-	if got != "3.00 GiB" {
-		t.Errorf("FormatSize(3*1024*1024*1024) = %q, want %q", got, "3.00 GiB")
-	}
-}
-
-func TestFormatSize_TiB(t *testing.T) {
-	t.Parallel()
-
-	got := cli.FormatSize(2 * 1024 * 1024 * 1024 * 1024)
-
-	if got != "2.00 TiB" {
-		t.Errorf("FormatSize(2*TiB) = %q, want %q", got, "2.00 TiB")
-	}
-}
-
 func TestPrintStatus_Ready(t *testing.T) {
 	t.Parallel()
 

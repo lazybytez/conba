@@ -15,7 +15,6 @@ var (
 	PrintResult      = printResult
 	PrintExcluded    = printExcluded
 
-	FormatSize          = formatSize
 	PrintStatus         = printStatus
 	PrintNotInitialized = printNotInitialized
 	PrintLocked         = printLocked
@@ -29,7 +28,6 @@ var (
 	_ func(io.Writer, filter.Result) error          = printResult
 	_ func(io.Writer, []filter.Exclusion) error     = printExcluded
 
-	_ func(uint64) string                                                = formatSize
 	_ func(io.Writer, string, []restic.Snapshot, restic.RepoStats) error = printStatus
 	_ func(io.Writer, string) error                                      = printNotInitialized
 	_ func(io.Writer, string) error                                      = printLocked

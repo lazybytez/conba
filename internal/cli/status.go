@@ -1,11 +1,12 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"io"
-	"strings"
 
 	"github.com/lazybytez/conba/internal/config"
+	"github.com/lazybytez/conba/internal/format"
 	"github.com/lazybytez/conba/internal/logging"
 	"github.com/lazybytez/conba/internal/restic"
 	"github.com/spf13/cobra"
@@ -52,16 +53,13 @@ func runStatus(cmd *cobra.Command, _ []string) error {
 }
 
 func handleStatusError(out io.Writer, repo string, err error) error {
-	errMsg := err.Error()
+	classified := restic.ClassifyError(err)
 
-	if strings.Contains(errMsg, "Is there a repository at the following location?") ||
-		strings.Contains(errMsg, "unable to open config file") ||
-		strings.Contains(errMsg, "Please specify repository location") {
+	if errors.Is(classified, restic.ErrRepoNotInitialized) {
 		return printNotInitialized(out, repo)
 	}
 
-	if strings.Contains(errMsg, "unable to create lock") ||
-		strings.Contains(errMsg, "repository is already locked") {
+	if errors.Is(classified, restic.ErrRepoLocked) {
 		return printLocked(out, repo)
 	}
 
@@ -108,33 +106,11 @@ func printStatus(
 		repo,
 		len(snapshots),
 		latestTime,
-		formatSize(stats.TotalSize),
+		format.Bytes(stats.TotalSize),
 	)
 	if err != nil {
 		return fmt.Errorf("writing output: %w", err)
 	}
 
 	return nil
-}
-
-func formatSize(bytes uint64) string {
-	const (
-		kib = 1024
-		mib = kib * 1024
-		gib = mib * 1024
-		tib = gib * 1024
-	)
-
-	switch {
-	case bytes >= tib:
-		return fmt.Sprintf("%.2f TiB", float64(bytes)/float64(tib))
-	case bytes >= gib:
-		return fmt.Sprintf("%.2f GiB", float64(bytes)/float64(gib))
-	case bytes >= mib:
-		return fmt.Sprintf("%.2f MiB", float64(bytes)/float64(mib))
-	case bytes >= kib:
-		return fmt.Sprintf("%.2f KiB", float64(bytes)/float64(kib))
-	default:
-		return fmt.Sprintf("%d B", bytes)
-	}
 }
