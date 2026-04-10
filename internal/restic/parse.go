@@ -16,3 +16,15 @@ func ParseSnapshots(data []byte) ([]Snapshot, error) {
 
 	return snapshots, nil
 }
+
+// ParseStats deserializes the JSON output of `restic stats --json`.
+func ParseStats(data []byte) (RepoStats, error) {
+	var stats RepoStats
+
+	err := json.Unmarshal(data, &stats)
+	if err != nil {
+		return RepoStats{}, fmt.Errorf("parsing stats: %w", err)
+	}
+
+	return stats, nil
+}

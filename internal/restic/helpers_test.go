@@ -38,7 +38,12 @@ func newTestClient(t *testing.T, repoPath string, password string) *restic.Clien
 		Environment:  nil,
 	}
 
-	return restic.New(cfg, zap.NewNop())
+	client, err := restic.New(cfg, zap.NewNop())
+	if err != nil {
+		t.Fatalf("create test client: %v", err)
+	}
+
+	return client
 }
 
 func createTestFile(t *testing.T, dir string, name string, content string) {

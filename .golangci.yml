@@ -28,6 +28,10 @@ linters:
       - linters:
           - gochecknoglobals
         path: export_test\.go
+      - linters:
+          - gosec
+        path: _test\.go
+        text: "G101:"
 
 formatters:
   enable:

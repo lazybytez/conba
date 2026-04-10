@@ -154,6 +154,28 @@ func TestBuildForgetArgs_PolicyFields(t *testing.T) {
 	}
 }
 
+func TestBuildUnlockArgs(t *testing.T) {
+	t.Parallel()
+
+	got := restic.BuildUnlockArgs()
+	want := []string{"unlock"}
+
+	if !slices.Equal(got, want) {
+		t.Errorf("BuildUnlockArgs() = %v, want %v", got, want)
+	}
+}
+
+func TestBuildStatsArgs(t *testing.T) {
+	t.Parallel()
+
+	got := restic.BuildStatsArgs()
+	want := []string{"stats", "--json"}
+
+	if !slices.Equal(got, want) {
+		t.Errorf("BuildStatsArgs() = %v, want %v", got, want)
+	}
+}
+
 func TestBuildForgetArgs_EdgeCases(t *testing.T) {
 	t.Parallel()
 

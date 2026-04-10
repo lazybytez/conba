@@ -48,6 +48,17 @@ var ErrInvalidFilterPattern = errors.New("invalid filter pattern")
 // ErrInvalidRuntimeType indicates a runtime type value that is not supported.
 var ErrInvalidRuntimeType = errors.New("invalid runtime type")
 
+// ErrMissingRepository indicates restic.repository is not configured.
+var ErrMissingRepository = errors.New(
+	"restic.repository is required but not configured",
+)
+
+// ErrMissingPassword indicates neither restic.password nor
+// restic.password_file is configured.
+var ErrMissingPassword = errors.New(
+	"restic.password or restic.password_file is required but not configured",
+)
+
 // Config is the top-level configuration structure for conba.
 type Config struct {
 	Logging   LoggingConfig   `mapstructure:"logging"`
@@ -64,6 +75,27 @@ type ResticConfig struct {
 	PasswordFile string            `mapstructure:"password_file"`
 	ExtraArgs    []string          `mapstructure:"extra_args"`
 	Environment  map[string]string `mapstructure:"environment"`
+}
+
+// Validate checks that the restic configuration has the minimum required
+// fields to interact with a repository. Commands that need restic should
+// call this before constructing a client.
+func (r ResticConfig) Validate() error {
+	if r.Repository == "" {
+		return fmt.Errorf(
+			"%w: set it in the config file or via CONBA_RESTIC_REPOSITORY",
+			ErrMissingRepository,
+		)
+	}
+
+	if r.Password == "" && r.PasswordFile == "" {
+		return fmt.Errorf(
+			"%w: set it in the config file or via CONBA_RESTIC_PASSWORD",
+			ErrMissingPassword,
+		)
+	}
+
+	return nil
 }
 
 // DiscoveryConfig holds container discovery and filtering settings.

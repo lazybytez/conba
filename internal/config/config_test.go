@@ -362,6 +362,86 @@ func assertResticEnvironment(
 	}
 }
 
+func TestResticConfigValidate_Valid(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.ResticConfig{
+		Binary:       "restic",
+		Repository:   "/tmp/repo",
+		Password:     "secret",
+		PasswordFile: "",
+		ExtraArgs:    nil,
+		Environment:  nil,
+	}
+
+	err := cfg.Validate()
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestResticConfigValidate_PasswordFileValid(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.ResticConfig{
+		Binary:       "restic",
+		Repository:   "/tmp/repo",
+		Password:     "",
+		PasswordFile: "/tmp/passfile",
+		ExtraArgs:    nil,
+		Environment:  nil,
+	}
+
+	err := cfg.Validate()
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestResticConfigValidate_MissingRepository(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.ResticConfig{
+		Binary:       "restic",
+		Repository:   "",
+		Password:     "secret",
+		PasswordFile: "",
+		ExtraArgs:    nil,
+		Environment:  nil,
+	}
+
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("want error, got nil")
+	}
+
+	if !errors.Is(err, config.ErrMissingRepository) {
+		t.Errorf("want ErrMissingRepository, got %v", err)
+	}
+}
+
+func TestResticConfigValidate_MissingPassword(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.ResticConfig{
+		Binary:       "restic",
+		Repository:   "/tmp/repo",
+		Password:     "",
+		PasswordFile: "",
+		ExtraArgs:    nil,
+		Environment:  nil,
+	}
+
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("want error, got nil")
+	}
+
+	if !errors.Is(err, config.ErrMissingPassword) {
+		t.Errorf("want ErrMissingPassword, got %v", err)
+	}
+}
+
 func TestLoadExplicitMissingFile(t *testing.T) {
 	t.Parallel()
 

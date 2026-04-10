@@ -25,6 +25,7 @@ func New(cfg config.LoggingConfig) (*zap.Logger, error) {
 	default:
 		zapCfg = zap.NewDevelopmentConfig()
 		zapCfg.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+		zapCfg.DisableStacktrace = true
 	}
 
 	zapCfg.Level = zap.NewAtomicLevelAt(level)

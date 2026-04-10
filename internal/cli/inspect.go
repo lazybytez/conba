@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
 	"io"
 
@@ -13,8 +12,6 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
-
-var errMissingConfig = errors.New("config not available in context")
 
 // NewInspectCommand creates the inspect subcommand that lists all
 // discovered containers and volumes with filter results.
