@@ -6,8 +6,12 @@ ARG restic_version=0.18.1
 # Stage 0: Source the pinned restic binary
 FROM docker.io/restic/restic:${restic_version} AS restic
 
-# Stage 1: Build the conba binary
-FROM docker.io/library/golang:${go_version}-alpine AS builder
+# Stage 1: Test image — Debian-based for CGO (required by -race detector)
+FROM docker.io/library/golang:${go_version} AS test
+COPY --from=restic --link /usr/bin/restic /usr/bin/restic
+
+# Stage 2: Build the conba binary
+FROM docker.io/library/golang:${go_version} AS builder
 
 ARG app_version=edge
 ARG build_commit_sha=unknown
@@ -23,7 +27,7 @@ RUN CGO_ENABLED=0 go build -buildvcs=false \
     -ldflags "-X github.com/lazybytez/conba/internal/build.Version=${app_version} -X github.com/lazybytez/conba/internal/build.CommitSHA=${build_commit_sha} -X github.com/lazybytez/conba/internal/build.ResticVersion=${restic_version}" \
     -o /build/conba ./cmd/conba
 
-# Stage 2: Minimal runtime image
+# Stage 3: Minimal runtime image
 FROM docker.io/library/alpine:${alpine_version} AS base
 
 ARG container_uid=1000

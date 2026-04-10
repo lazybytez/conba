@@ -14,7 +14,8 @@ func (c *Client) Init(ctx context.Context) error {
 		return nil
 	}
 
-	if strings.Contains(err.Error(), "already initialized") {
+	if strings.Contains(err.Error(), "already initialized") ||
+		strings.Contains(err.Error(), "config file already exists") {
 		return nil
 	}
 

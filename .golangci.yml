@@ -23,6 +23,12 @@ linters:
             - pkg: "io/ioutil"
               desc: "deprecated: use io and os packages instead"
 
+  exclusions:
+    rules:
+      - linters:
+          - gochecknoglobals
+        path: export_test\.go
+
 formatters:
   enable:
     - gofumpt
