@@ -2,7 +2,8 @@ package restic
 
 import (
 	"errors"
-	"strings"
+
+	"github.com/lazybytez/conba/internal/support/stringutil"
 )
 
 // Sentinel errors for classifiable restic failure conditions.
@@ -31,21 +32,11 @@ func ClassifyError(err error) error {
 	msg := err.Error()
 
 	switch {
-	case containsAny(msg, msgRepoNotFound, msgConfigMissing, msgRepoUnset):
+	case stringutil.ContainsAny(msg, msgRepoNotFound, msgConfigMissing, msgRepoUnset):
 		return ErrRepoNotInitialized
-	case containsAny(msg, msgLockFailed, msgAlreadyLocked):
+	case stringutil.ContainsAny(msg, msgLockFailed, msgAlreadyLocked):
 		return ErrRepoLocked
 	default:
 		return err
 	}
-}
-
-func containsAny(s string, substrs ...string) bool {
-	for _, sub := range substrs {
-		if strings.Contains(s, sub) {
-			return true
-		}
-	}
-
-	return false
 }

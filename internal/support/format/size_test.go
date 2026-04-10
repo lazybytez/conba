@@ -3,7 +3,7 @@ package format_test
 import (
 	"testing"
 
-	"github.com/lazybytez/conba/internal/format"
+	"github.com/lazybytez/conba/internal/support/format"
 )
 
 func TestBytes_Zero(t *testing.T) {

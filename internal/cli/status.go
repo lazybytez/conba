@@ -6,9 +6,9 @@ import (
 	"io"
 
 	"github.com/lazybytez/conba/internal/config"
-	"github.com/lazybytez/conba/internal/format"
 	"github.com/lazybytez/conba/internal/logging"
 	"github.com/lazybytez/conba/internal/restic"
+	"github.com/lazybytez/conba/internal/support/format"
 	"github.com/spf13/cobra"
 )
 
