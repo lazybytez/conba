@@ -64,7 +64,7 @@ func TestRunInit_MissingRepository(t *testing.T) {
 		t.Fatal("want error, got nil")
 	}
 
-	if !errors.Is(err, cli.ErrMissingRepository) {
+	if !errors.Is(err, config.ErrMissingRepository) {
 		t.Errorf("want ErrMissingRepository, got %v", err)
 	}
 }

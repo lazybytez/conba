@@ -3,7 +3,6 @@ package cli
 import (
 	"io"
 
-	"github.com/lazybytez/conba/internal/config"
 	"github.com/lazybytez/conba/internal/discovery"
 	"github.com/lazybytez/conba/internal/filter"
 	"github.com/lazybytez/conba/internal/restic"
@@ -21,11 +20,6 @@ var (
 	PrintNotInitialized = printNotInitialized
 	PrintLocked         = printLocked
 	HandleStatusError   = handleStatusError
-
-	ErrMissingRepository = errMissingRepository
-	ErrMissingPassword   = errMissingPassword
-
-	RequireResticConfig = requireResticConfig
 )
 
 // Ensure function signatures stay in sync with aliases.
@@ -40,5 +34,4 @@ var (
 	_ func(io.Writer, string) error                                      = printNotInitialized
 	_ func(io.Writer, string) error                                      = printLocked
 	_ func(io.Writer, string, error) error                               = handleStatusError
-	_ func(config.ResticConfig) error                                    = requireResticConfig
 )

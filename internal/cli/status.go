@@ -30,9 +30,9 @@ func runStatus(cmd *cobra.Command, _ []string) error {
 		return errMissingConfig
 	}
 
-	err := requireResticConfig(cfg.Restic)
+	err := cfg.Restic.Validate()
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid restic config: %w", err)
 	}
 
 	client := restic.New(cfg.Restic, logger)
