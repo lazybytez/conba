@@ -12,11 +12,7 @@ import (
 	"github.com/lazybytez/conba/internal/restic"
 )
 
-var (
-	errNotInitializedStub = errors.New("stub: not initialized")
-	errLockedStub         = errors.New("stub: locked")
-	errUnknownStub        = errors.New("stub: unknown")
-)
+var errStatusStub = errors.New("stub: status error")
 
 func TestNewStatusCommand_Use(t *testing.T) {
 	t.Parallel()
@@ -68,6 +64,16 @@ func TestFormatSize_MiB(t *testing.T) {
 	}
 }
 
+func TestFormatSize_Zero(t *testing.T) {
+	t.Parallel()
+
+	got := cli.FormatSize(0)
+
+	if got != "0 B" {
+		t.Errorf("FormatSize(0) = %q, want %q", got, "0 B")
+	}
+}
+
 func TestFormatSize_GiB(t *testing.T) {
 	t.Parallel()
 
@@ -75,6 +81,16 @@ func TestFormatSize_GiB(t *testing.T) {
 
 	if got != "3.00 GiB" {
 		t.Errorf("FormatSize(3*1024*1024*1024) = %q, want %q", got, "3.00 GiB")
+	}
+}
+
+func TestFormatSize_TiB(t *testing.T) {
+	t.Parallel()
+
+	got := cli.FormatSize(2 * 1024 * 1024 * 1024 * 1024)
+
+	if got != "2.00 TiB" {
+		t.Errorf("FormatSize(2*TiB) = %q, want %q", got, "2.00 TiB")
 	}
 }
 
@@ -170,10 +186,9 @@ func TestHandleStatusError_NotInitialized(t *testing.T) {
 	var buf bytes.Buffer
 
 	err := cli.HandleStatusError(&buf, "/repo/path",
-		fmt.Errorf("Is there a repository at the following location?: %w", errNotInitializedStub))
-
-	if !errors.Is(err, cli.ErrRepoNotInitialized) {
-		t.Errorf("want errRepoNotInitialized, got %v", err)
+		fmt.Errorf("Is there a repository at the following location?: %w", errStatusStub))
+	if err != nil {
+		t.Fatalf("want nil, got %v", err)
 	}
 
 	if !strings.Contains(buf.String(), "not initialized") {
@@ -187,10 +202,9 @@ func TestHandleStatusError_Locked(t *testing.T) {
 	var buf bytes.Buffer
 
 	err := cli.HandleStatusError(&buf, "/repo/path",
-		fmt.Errorf("unable to create lock: %w", errLockedStub))
-
-	if !errors.Is(err, cli.ErrRepoLocked) {
-		t.Errorf("want errRepoLocked, got %v", err)
+		fmt.Errorf("unable to create lock: %w", errStatusStub))
+	if err != nil {
+		t.Fatalf("want nil, got %v", err)
 	}
 
 	if !strings.Contains(buf.String(), "locked") {
@@ -204,7 +218,7 @@ func TestHandleStatusError_Unknown(t *testing.T) {
 	var buf bytes.Buffer
 
 	err := cli.HandleStatusError(&buf, "/repo/path",
-		fmt.Errorf("some unexpected error: %w", errUnknownStub))
+		fmt.Errorf("some unexpected error: %w", errStatusStub))
 	if err == nil {
 		t.Fatal("want error, got nil")
 	}

@@ -22,10 +22,8 @@ var (
 	PrintLocked         = printLocked
 	HandleStatusError   = handleStatusError
 
-	ErrRepoNotInitialized = errRepoNotInitialized
-	ErrRepoLocked         = errRepoLocked
-	ErrMissingRepository  = errMissingRepository
-	ErrMissingPassword    = errMissingPassword
+	ErrMissingRepository = errMissingRepository
+	ErrMissingPassword   = errMissingPassword
 
 	RequireResticConfig = requireResticConfig
 )

@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -10,11 +9,6 @@ import (
 	"github.com/lazybytez/conba/internal/logging"
 	"github.com/lazybytez/conba/internal/restic"
 	"github.com/spf13/cobra"
-)
-
-var (
-	errRepoNotInitialized = errors.New("repository not initialized")
-	errRepoLocked         = errors.New("repository is locked")
 )
 
 // NewStatusCommand creates the status subcommand that shows
@@ -63,22 +57,12 @@ func handleStatusError(out io.Writer, repo string, err error) error {
 	if strings.Contains(errMsg, "Is there a repository at the following location?") ||
 		strings.Contains(errMsg, "unable to open config file") ||
 		strings.Contains(errMsg, "Please specify repository location") {
-		writeErr := printNotInitialized(out, repo)
-		if writeErr != nil {
-			return writeErr
-		}
-
-		return errRepoNotInitialized
+		return printNotInitialized(out, repo)
 	}
 
 	if strings.Contains(errMsg, "unable to create lock") ||
 		strings.Contains(errMsg, "repository is already locked") {
-		writeErr := printLocked(out, repo)
-		if writeErr != nil {
-			return writeErr
-		}
-
-		return errRepoLocked
+		return printLocked(out, repo)
 	}
 
 	return fmt.Errorf("check repository: %w", err)

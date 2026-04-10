@@ -29,3 +29,6 @@ vendor/
 .env.*
 *.pem
 *.key
+
+# Test config
+conba-config.test.yaml
