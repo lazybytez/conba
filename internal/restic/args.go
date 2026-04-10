@@ -39,6 +39,16 @@ func BuildForgetArgs(tags []string, policy ForgetPolicy) []string {
 	return args
 }
 
+// BuildUnlockArgs returns the argument slice for unlocking a restic repository.
+func BuildUnlockArgs() []string {
+	return []string{"unlock"}
+}
+
+// BuildStatsArgs returns the argument slice for retrieving repository statistics.
+func BuildStatsArgs() []string {
+	return []string{"stats", "--json"}
+}
+
 func appendTags(args []string, tags []string) []string {
 	for _, tag := range tags {
 		args = append(args, "--tag", tag)

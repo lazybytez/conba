@@ -133,6 +133,60 @@ func assertSnapshot(
 	}
 }
 
+func TestParseStatsValidJSON(t *testing.T) {
+	t.Parallel()
+
+	input := []byte(`{"total_size":123456,"total_file_count":42}`)
+
+	stats, err := restic.ParseStats(input)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if stats.TotalSize != 123456 {
+		t.Errorf("expected TotalSize 123456, got %d", stats.TotalSize)
+	}
+
+	if stats.TotalFileCount != 42 {
+		t.Errorf("expected TotalFileCount 42, got %d", stats.TotalFileCount)
+	}
+}
+
+func TestParseStatsZeroValues(t *testing.T) {
+	t.Parallel()
+
+	input := []byte(`{"total_size":0,"total_file_count":0}`)
+
+	stats, err := restic.ParseStats(input)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if stats.TotalSize != 0 {
+		t.Errorf("expected TotalSize 0, got %d", stats.TotalSize)
+	}
+
+	if stats.TotalFileCount != 0 {
+		t.Errorf("expected TotalFileCount 0, got %d", stats.TotalFileCount)
+	}
+}
+
+func TestParseStatsInvalidJSON(t *testing.T) {
+	t.Parallel()
+
+	_, err := restic.ParseStats([]byte(`not json`))
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+
+	if got := err.Error(); !strings.Contains(got, "parsing stats") {
+		t.Errorf(
+			"expected error containing 'parsing stats', got %q",
+			got,
+		)
+	}
+}
+
 func assertStringSlice(
 	t *testing.T,
 	field string,
