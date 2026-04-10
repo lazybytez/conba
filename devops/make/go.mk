@@ -12,8 +12,11 @@ go/build:
 
 # Build the test image containing Go toolchain and restic binary
 go/test-image:
-	printf 'FROM $(RESTIC_IMAGE) AS restic\nFROM $(GO_IMAGE)\nCOPY --from=restic /usr/bin/restic /usr/bin/restic\n' \
-		| $(DOCKER_EXECUTABLE) build -t $(TEST_IMAGE) -f - $$(mktemp -d)
+	$(DOCKER_EXECUTABLE) build \
+		--target test \
+		--build-arg restic_version=$(RESTIC_VERSION) \
+		-t $(TEST_IMAGE) \
+		-f Containerfile $$(mktemp -d)
 
 # Run tests with race detector
 go/test: go/test-image
