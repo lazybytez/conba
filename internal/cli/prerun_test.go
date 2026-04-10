@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -50,7 +51,7 @@ func runPersistentPreRunE(t *testing.T, configPath string) (*config.Config, *zap
 
 	err := cmd.PersistentPreRunE(cmd, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("persistent pre-run: %w", err)
 	}
 
 	cfg := config.FromContext(cmd.Context())

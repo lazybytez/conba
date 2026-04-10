@@ -1,10 +1,11 @@
-package cli
+package cli_test
 
 import (
 	"bytes"
 	"strings"
 	"testing"
 
+	"github.com/lazybytez/conba/internal/cli"
 	"github.com/lazybytez/conba/internal/discovery"
 	"github.com/lazybytez/conba/internal/filter"
 	"github.com/lazybytez/conba/internal/runtime"
@@ -14,10 +15,10 @@ func TestShortID_Long(t *testing.T) {
 	t.Parallel()
 
 	id := "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
-	got := shortID(id)
+	got := cli.ShortID(id)
 
 	if got != "abcdef123456" {
-		t.Errorf("shortID(%q) = %q, want %q", id, got, "abcdef123456")
+		t.Errorf("ShortID(%q) = %q, want %q", id, got, "abcdef123456")
 	}
 }
 
@@ -25,10 +26,10 @@ func TestShortID_Exact(t *testing.T) {
 	t.Parallel()
 
 	id := "abcdef123456"
-	got := shortID(id)
+	got := cli.ShortID(id)
 
 	if got != id {
-		t.Errorf("shortID(%q) = %q, want %q", id, got, id)
+		t.Errorf("ShortID(%q) = %q, want %q", id, got, id)
 	}
 }
 
@@ -36,33 +37,51 @@ func TestShortID_Short(t *testing.T) {
 	t.Parallel()
 
 	id := "abc"
-	got := shortID(id)
+	got := cli.ShortID(id)
 
 	if got != id {
-		t.Errorf("shortID(%q) = %q, want %q", id, got, id)
+		t.Errorf("ShortID(%q) = %q, want %q", id, got, id)
 	}
 }
 
 func TestShortID_Empty(t *testing.T) {
 	t.Parallel()
 
-	got := shortID("")
+	got := cli.ShortID("")
 
 	if got != "" {
-		t.Errorf("shortID(%q) = %q, want %q", "", got, "")
+		t.Errorf("ShortID(%q) = %q, want %q", "", got, "")
+	}
+}
+
+func newContainerInfo(id, name string) runtime.ContainerInfo {
+	return runtime.ContainerInfo{
+		ID:     id,
+		Name:   name,
+		Labels: nil,
+		Mounts: nil,
+	}
+}
+
+func newMountInfo(mountType, name, destination string) runtime.MountInfo {
+	return runtime.MountInfo{
+		Type:        mountType,
+		Name:        name,
+		Destination: destination,
+		ReadOnly:    false,
 	}
 }
 
 func TestGroupByContainer_SingleContainer(t *testing.T) {
 	t.Parallel()
 
-	container := runtime.ContainerInfo{ID: "c1", Name: "app"}
+	ctr := newContainerInfo("c1", "app")
 	targets := []discovery.Target{
-		{Container: container, Mount: runtime.MountInfo{Name: "vol1"}},
-		{Container: container, Mount: runtime.MountInfo{Name: "vol2"}},
+		{Container: ctr, Mount: newMountInfo("volume", "vol1", "/vol1")},
+		{Container: ctr, Mount: newMountInfo("volume", "vol2", "/vol2")},
 	}
 
-	groups := groupByContainer(targets)
+	groups := cli.GroupByContainer(targets)
 
 	if len(groups) != 1 {
 		t.Fatalf("got %d groups, want 1", len(groups))
@@ -77,11 +96,11 @@ func TestGroupByContainer_MultipleContainers(t *testing.T) {
 	t.Parallel()
 
 	targets := []discovery.Target{
-		{Container: runtime.ContainerInfo{ID: "c1", Name: "app"}, Mount: runtime.MountInfo{Name: "v1"}},
-		{Container: runtime.ContainerInfo{ID: "c2", Name: "db"}, Mount: runtime.MountInfo{Name: "v2"}},
+		{Container: newContainerInfo("c1", "app"), Mount: newMountInfo("volume", "v1", "/v1")},
+		{Container: newContainerInfo("c2", "db"), Mount: newMountInfo("volume", "v2", "/v2")},
 	}
 
-	groups := groupByContainer(targets)
+	groups := cli.GroupByContainer(targets)
 
 	if len(groups) != 2 {
 		t.Fatalf("got %d groups, want 2", len(groups))
@@ -100,12 +119,12 @@ func TestGroupByContainer_PreservesOrder(t *testing.T) {
 	t.Parallel()
 
 	targets := []discovery.Target{
-		{Container: runtime.ContainerInfo{ID: "c2", Name: "db"}, Mount: runtime.MountInfo{Name: "v1"}},
-		{Container: runtime.ContainerInfo{ID: "c1", Name: "app"}, Mount: runtime.MountInfo{Name: "v2"}},
-		{Container: runtime.ContainerInfo{ID: "c2", Name: "db"}, Mount: runtime.MountInfo{Name: "v3"}},
+		{Container: newContainerInfo("c2", "db"), Mount: newMountInfo("volume", "v1", "/v1")},
+		{Container: newContainerInfo("c1", "app"), Mount: newMountInfo("volume", "v2", "/v2")},
+		{Container: newContainerInfo("c2", "db"), Mount: newMountInfo("volume", "v3", "/v3")},
 	}
 
-	groups := groupByContainer(targets)
+	groups := cli.GroupByContainer(targets)
 
 	if len(groups) != 2 {
 		t.Fatalf("got %d groups, want 2", len(groups))
@@ -127,7 +146,7 @@ func TestGroupByContainer_PreservesOrder(t *testing.T) {
 func TestGroupByContainer_Empty(t *testing.T) {
 	t.Parallel()
 
-	groups := groupByContainer(nil)
+	groups := cli.GroupByContainer(nil)
 
 	if groups != nil {
 		t.Errorf("got %v, want nil", groups)
@@ -139,7 +158,10 @@ func TestPrintResult_Empty(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	err := printResult(&buf, filter.Result{})
+	err := cli.PrintResult(&buf, filter.Result{
+		Included: nil,
+		Excluded: nil,
+	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -155,15 +177,16 @@ func TestPrintResult_IncludedOnly(t *testing.T) {
 	result := filter.Result{
 		Included: []discovery.Target{
 			{
-				Container: runtime.ContainerInfo{ID: "abc123def456", Name: "app"},
-				Mount:     runtime.MountInfo{Type: "volume", Name: "data", Destination: "/data"},
+				Container: newContainerInfo("abc123def456", "app"),
+				Mount:     newMountInfo("volume", "data", "/data"),
 			},
 		},
+		Excluded: nil,
 	}
 
 	var buf bytes.Buffer
 
-	err := printResult(&buf, result)
+	err := cli.PrintResult(&buf, result)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -183,11 +206,12 @@ func TestPrintResult_ExcludedOnly(t *testing.T) {
 	t.Parallel()
 
 	result := filter.Result{
+		Included: nil,
 		Excluded: []filter.Exclusion{
 			{
 				Target: discovery.Target{
-					Container: runtime.ContainerInfo{ID: "abc123def456", Name: "app"},
-					Mount:     runtime.MountInfo{Type: "volume", Name: "cache", Destination: "/cache"},
+					Container: newContainerInfo("abc123def456", "app"),
+					Mount:     newMountInfo("volume", "cache", "/cache"),
 				},
 				Reason: "label exclude",
 			},
@@ -196,7 +220,7 @@ func TestPrintResult_ExcludedOnly(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	err := printResult(&buf, result)
+	err := cli.PrintResult(&buf, result)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -218,15 +242,15 @@ func TestPrintResult_Both(t *testing.T) {
 	result := filter.Result{
 		Included: []discovery.Target{
 			{
-				Container: runtime.ContainerInfo{ID: "abc123def456", Name: "app"},
-				Mount:     runtime.MountInfo{Type: "volume", Name: "data", Destination: "/data"},
+				Container: newContainerInfo("abc123def456", "app"),
+				Mount:     newMountInfo("volume", "data", "/data"),
 			},
 		},
 		Excluded: []filter.Exclusion{
 			{
 				Target: discovery.Target{
-					Container: runtime.ContainerInfo{ID: "def456abc123", Name: "db"},
-					Mount:     runtime.MountInfo{Type: "bind", Name: "/host/path", Destination: "/mnt"},
+					Container: newContainerInfo("def456abc123", "db"),
+					Mount:     newMountInfo("bind", "/host/path", "/mnt"),
 				},
 				Reason: "not matching",
 			},
@@ -235,7 +259,7 @@ func TestPrintResult_Both(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	err := printResult(&buf, result)
+	err := cli.PrintResult(&buf, result)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -257,8 +281,8 @@ func TestPrintExcluded_ShowsReason(t *testing.T) {
 	exclusions := []filter.Exclusion{
 		{
 			Target: discovery.Target{
-				Container: runtime.ContainerInfo{ID: "abc123def456", Name: "worker"},
-				Mount:     runtime.MountInfo{Type: "volume", Name: "tmp", Destination: "/tmp"},
+				Container: newContainerInfo("abc123def456", "worker"),
+				Mount:     newMountInfo("volume", "tmp", "/tmp"),
 			},
 			Reason: "excluded by label",
 		},
@@ -266,7 +290,7 @@ func TestPrintExcluded_ShowsReason(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	err := printExcluded(&buf, exclusions)
+	err := cli.PrintExcluded(&buf, exclusions)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
