@@ -10,6 +10,8 @@ import (
 )
 
 func TestSnapshots_WithBackup(t *testing.T) {
+	t.Parallel()
+
 	repoPath, password := newTestRepo(t)
 	client := newTestClient(t, repoPath, password)
 	ctx := context.Background()
@@ -52,6 +54,8 @@ func TestSnapshots_WithBackup(t *testing.T) {
 }
 
 func TestSnapshots_Empty(t *testing.T) {
+	t.Parallel()
+
 	repoPath, password := newTestRepo(t)
 	client := newTestClient(t, repoPath, password)
 	ctx := context.Background()
@@ -72,6 +76,8 @@ func TestSnapshots_Empty(t *testing.T) {
 }
 
 func TestSnapshots_Failure(t *testing.T) {
+	t.Parallel()
+
 	repoPath, password := newTestRepo(t)
 	client := newTestClient(t, repoPath, password)
 	ctx := context.Background()

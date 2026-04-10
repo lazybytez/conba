@@ -9,6 +9,8 @@ import (
 )
 
 func TestForget_ReducesSnapshots(t *testing.T) {
+	t.Parallel()
+
 	repoPath, password := newTestRepo(t)
 	client := newTestClient(t, repoPath, password)
 
@@ -54,6 +56,8 @@ func TestForget_ReducesSnapshots(t *testing.T) {
 }
 
 func TestForget_Failure(t *testing.T) {
+	t.Parallel()
+
 	repoPath, password := newTestRepo(t)
 	client := newTestClient(t, repoPath, password)
 

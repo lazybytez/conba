@@ -9,6 +9,8 @@ import (
 )
 
 func TestBackup_Success(t *testing.T) {
+	t.Parallel()
+
 	repoPath, password := newTestRepo(t)
 	client := newTestClient(t, repoPath, password)
 
@@ -27,6 +29,8 @@ func TestBackup_Success(t *testing.T) {
 }
 
 func TestBackup_Failure(t *testing.T) {
+	t.Parallel()
+
 	repoPath, password := newTestRepo(t)
 	client := newTestClient(t, repoPath, password)
 

@@ -11,6 +11,8 @@ import (
 )
 
 func TestInit_Success(t *testing.T) {
+	t.Parallel()
+
 	repoPath, password := newTestRepo(t)
 	client := newTestClient(t, repoPath, password)
 
@@ -28,6 +30,8 @@ func TestInit_Success(t *testing.T) {
 }
 
 func TestInit_AlreadyInitialized(t *testing.T) {
+	t.Parallel()
+
 	repoPath, password := newTestRepo(t)
 	client := newTestClient(t, repoPath, password)
 
@@ -43,6 +47,8 @@ func TestInit_AlreadyInitialized(t *testing.T) {
 }
 
 func TestInit_Failure(t *testing.T) {
+	t.Parallel()
+
 	client := newTestClient(t, "/proc/nonexistent/repo", "test-password")
 
 	err := client.Init(context.Background())

@@ -26,9 +26,6 @@ linters:
   exclusions:
     rules:
       - linters:
-          - paralleltest
-        path: internal/restic/(init|backup|snapshots|forget|helpers)_test\.go
-      - linters:
           - gochecknoglobals
         path: export_test\.go
 
