@@ -22,12 +22,18 @@ type Client struct {
 }
 
 // New creates a restic client from the given configuration and logger.
-func New(cfg config.ResticConfig, logger *zap.Logger) *Client {
+// It returns an error if the configuration is missing required fields.
+func New(cfg config.ResticConfig, logger *zap.Logger) (*Client, error) {
+	err := cfg.Validate()
+	if err != nil {
+		return nil, fmt.Errorf("invalid restic config: %w", err)
+	}
+
 	return &Client{
 		binary: cfg.Binary,
 		env:    BuildEnv(cfg),
 		logger: logger,
-	}
+	}, nil
 }
 
 func (c *Client) run(ctx context.Context, args []string) ([]byte, error) {
