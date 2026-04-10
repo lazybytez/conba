@@ -56,7 +56,8 @@ func handleStatusError(out io.Writer, repo string, err error) error {
 	errMsg := err.Error()
 
 	if strings.Contains(errMsg, "Is there a repository at the following location?") ||
-		strings.Contains(errMsg, "unable to open config file") {
+		strings.Contains(errMsg, "unable to open config file") ||
+		strings.Contains(errMsg, "Please specify repository location") {
 		writeErr := printNotInitialized(out, repo)
 		if writeErr != nil {
 			return writeErr
