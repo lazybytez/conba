@@ -28,9 +28,14 @@ func runInit(cmd *cobra.Command, _ []string) error {
 		return errMissingConfig
 	}
 
+	err := requireResticConfig(cfg.Restic)
+	if err != nil {
+		return err
+	}
+
 	client := restic.New(cfg.Restic, logger)
 
-	err := client.Init(ctx)
+	err = client.Init(ctx)
 	if err != nil {
 		return fmt.Errorf("init repository: %w", err)
 	}

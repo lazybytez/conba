@@ -28,9 +28,14 @@ func runUnlock(cmd *cobra.Command, _ []string) error {
 		return errMissingConfig
 	}
 
+	err := requireResticConfig(cfg.Restic)
+	if err != nil {
+		return err
+	}
+
 	client := restic.New(cfg.Restic, logger)
 
-	err := client.Unlock(ctx)
+	err = client.Unlock(ctx)
 	if err != nil {
 		return fmt.Errorf("unlock repository: %w", err)
 	}

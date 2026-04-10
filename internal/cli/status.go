@@ -36,6 +36,11 @@ func runStatus(cmd *cobra.Command, _ []string) error {
 		return errMissingConfig
 	}
 
+	err := requireResticConfig(cfg.Restic)
+	if err != nil {
+		return err
+	}
+
 	client := restic.New(cfg.Restic, logger)
 	out := cmd.OutOrStdout()
 
