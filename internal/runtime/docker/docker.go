@@ -98,6 +98,7 @@ func mapMounts(mounts []container.MountPoint) []runtime.MountInfo {
 		infos = append(infos, runtime.MountInfo{
 			Type:        string(mount.Type),
 			Name:        name,
+			Source:      mount.Source,
 			Destination: mount.Destination,
 			ReadOnly:    !mount.RW,
 		})

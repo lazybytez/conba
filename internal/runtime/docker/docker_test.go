@@ -70,6 +70,10 @@ func TestMapMounts_Volume(t *testing.T) {
 	if got[0].Destination != "/data" {
 		t.Errorf("want Destination %q, got %q", "/data", got[0].Destination)
 	}
+
+	if got[0].Source != "/var/lib/docker/volumes/my-volume/_data" {
+		t.Errorf("want Source %q, got %q", "/var/lib/docker/volumes/my-volume/_data", got[0].Source)
+	}
 }
 
 func TestMapMounts_Bind(t *testing.T) {
@@ -101,6 +105,10 @@ func TestMapMounts_Bind(t *testing.T) {
 	if got[0].Type != runtime.MountTypeBind {
 		t.Errorf("want Type %q, got %q", runtime.MountTypeBind, got[0].Type)
 	}
+
+	if got[0].Source != "/host/path" {
+		t.Errorf("want Source %q, got %q", "/host/path", got[0].Source)
+	}
 }
 
 func TestMapMounts_ReadOnly(t *testing.T) {
@@ -110,7 +118,7 @@ func TestMapMounts_ReadOnly(t *testing.T) {
 		{
 			Type:        "volume",
 			Name:        "ro-vol",
-			Source:      "",
+			Source:      "/some/path",
 			Destination: "/data",
 			Driver:      "",
 			Mode:        "",
@@ -128,6 +136,10 @@ func TestMapMounts_ReadOnly(t *testing.T) {
 	if !got[0].ReadOnly {
 		t.Errorf("want ReadOnly true when RW is false")
 	}
+
+	if got[0].Source != "/some/path" {
+		t.Errorf("want Source %q, got %q", "/some/path", got[0].Source)
+	}
 }
 
 func TestMapMounts_ReadWrite(t *testing.T) {
@@ -137,7 +149,7 @@ func TestMapMounts_ReadWrite(t *testing.T) {
 		{
 			Type:        "volume",
 			Name:        "rw-vol",
-			Source:      "",
+			Source:      "/some/path",
 			Destination: "/data",
 			Driver:      "",
 			Mode:        "",
@@ -154,6 +166,10 @@ func TestMapMounts_ReadWrite(t *testing.T) {
 
 	if got[0].ReadOnly {
 		t.Errorf("want ReadOnly false when RW is true")
+	}
+
+	if got[0].Source != "/some/path" {
+		t.Errorf("want Source %q, got %q", "/some/path", got[0].Source)
 	}
 }
 
@@ -224,6 +240,10 @@ func TestMapMounts_MixedVolume(t *testing.T) {
 	if got[0].ReadOnly {
 		t.Errorf("want ReadOnly false")
 	}
+
+	if got[0].Source != "/var/lib/docker/volumes/db-data/_data" {
+		t.Errorf("want Source %q, got %q", "/var/lib/docker/volumes/db-data/_data", got[0].Source)
+	}
 }
 
 func TestMapMounts_MixedBind(t *testing.T) {
@@ -238,6 +258,10 @@ func TestMapMounts_MixedBind(t *testing.T) {
 	if !got[1].ReadOnly {
 		t.Errorf("want ReadOnly true")
 	}
+
+	if got[1].Source != "/etc/config" {
+		t.Errorf("want Source %q, got %q", "/etc/config", got[1].Source)
+	}
 }
 
 func TestMapMounts_MixedTmpfs(t *testing.T) {
@@ -251,5 +275,9 @@ func TestMapMounts_MixedTmpfs(t *testing.T) {
 
 	if got[2].Destination != "/tmp" {
 		t.Errorf("want Destination %q, got %q", "/tmp", got[2].Destination)
+	}
+
+	if got[2].Source != "" {
+		t.Errorf("want Source %q (empty for tmpfs), got %q", "", got[2].Source)
 	}
 }

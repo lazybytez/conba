@@ -23,6 +23,7 @@ const (
 type MountInfo struct {
 	Type        string
 	Name        string // volume name or bind source path
+	Source      string // host filesystem path
 	Destination string // container mount path
 	ReadOnly    bool
 }

@@ -32,6 +32,7 @@ func makeTarget(
 		Mount: runtime.MountInfo{
 			Type:        "volume",
 			Name:        mountName,
+			Source:      "",
 			Destination: mountDest,
 			ReadOnly:    false,
 		},
