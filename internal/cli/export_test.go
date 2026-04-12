@@ -21,6 +21,10 @@ var (
 	HandleStatusError   = handleStatusError
 
 	PrintDryRun = printDryRun
+
+	PrintSnapshots  = printSnapshots
+	ExtractTag      = extractTag
+	BuildFilterTags = buildFilterTags
 )
 
 // Ensure function signatures stay in sync with aliases.
@@ -36,4 +40,8 @@ var (
 	_ func(io.Writer, string, error) error                               = handleStatusError
 
 	_ func(io.Writer, []discovery.Target) error = printDryRun
+
+	_ func(io.Writer, []restic.Snapshot) error = printSnapshots
+	_ func([]string, string) string            = extractTag
+	_ func(string, string, string) []string    = buildFilterTags
 )
