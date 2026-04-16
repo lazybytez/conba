@@ -6,6 +6,7 @@ import (
 	"github.com/lazybytez/conba/internal/discovery"
 	"github.com/lazybytez/conba/internal/filter"
 	"github.com/lazybytez/conba/internal/restic"
+	"github.com/spf13/pflag"
 )
 
 // Exported aliases for unexported functions, used by tests in cli_test package.
@@ -22,10 +23,17 @@ var (
 
 	PrintDryRun = printDryRun
 
-	PrintSnapshots  = printSnapshots
-	ExtractTag      = extractTag
-	BuildFilterTags = buildFilterTags
+	PrintSnapshots      = printSnapshots
+	ExtractTag          = extractTag
+	BuildFilterTags     = buildFilterTags
+	ReadSnapshotFilters = readSnapshotFilters
 )
+
+// SnapshotFilters exposes the unexported snapshotFilters struct for tests.
+type SnapshotFilters = snapshotFilters
+
+// SnapshotFiltersTags exposes snapshotFilters.tags() for tests.
+func SnapshotFiltersTags(f SnapshotFilters) []string { return f.tags() }
 
 // Ensure function signatures stay in sync with aliases.
 var (
@@ -44,4 +52,5 @@ var (
 	_ func(io.Writer, []restic.Snapshot) error = printSnapshots
 	_ func([]string, string) string            = extractTag
 	_ func(string, string, string) []string    = buildFilterTags
+	_ func(*pflag.FlagSet) snapshotFilters     = readSnapshotFilters
 )

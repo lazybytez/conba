@@ -4,12 +4,32 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/lazybytez/conba/internal/config"
 	"github.com/lazybytez/conba/internal/logging"
 	"github.com/lazybytez/conba/internal/restic"
+	"github.com/lazybytez/conba/internal/support/format"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
+
+const (
+	tagPrefixContainer = "container="
+	tagPrefixVolume    = "volume="
+	tagPrefixHostname  = "hostname="
+
+	// snapshotColumnPadding is the minimum inter-column padding for the
+	// snapshots table (tabwriter).
+	snapshotColumnPadding = 2
+)
+
+// snapshotFilters holds the CLI-provided filters for the snapshots command.
+type snapshotFilters struct {
+	container string
+	volume    string
+	hostname  string
+}
 
 // NewSnapshotsCommand creates the snapshots subcommand that lists backup snapshots.
 func NewSnapshotsCommand() *cobra.Command {
@@ -35,29 +55,14 @@ func runSnapshots(cmd *cobra.Command, _ []string) error {
 		return errMissingConfig
 	}
 
-	container, err := cmd.Flags().GetString("container")
-	if err != nil {
-		return fmt.Errorf("reading container flag: %w", err)
-	}
-
-	volume, err := cmd.Flags().GetString("volume")
-	if err != nil {
-		return fmt.Errorf("reading volume flag: %w", err)
-	}
-
-	hostname, err := cmd.Flags().GetString("hostname")
-	if err != nil {
-		return fmt.Errorf("reading hostname flag: %w", err)
-	}
-
-	tags := buildFilterTags(container, volume, hostname)
+	filters := readSnapshotFilters(cmd.Flags())
 
 	client, err := restic.New(cfg.Restic, logger)
 	if err != nil {
 		return fmt.Errorf("create restic client: %w", err)
 	}
 
-	snapshots, err := client.Snapshots(ctx, tags)
+	snapshots, err := client.Snapshots(ctx, filters.tags())
 	if err != nil {
 		return fmt.Errorf("list snapshots: %w", err)
 	}
@@ -76,31 +81,50 @@ func runSnapshots(cmd *cobra.Command, _ []string) error {
 	return printSnapshots(out, snapshots)
 }
 
-func printSnapshots(out io.Writer, snapshots []restic.Snapshot) error {
-	const rowFmt = "%-10s  %-20s  %-20s  %-25s  %s\n"
-
-	_, err := fmt.Fprintf(out, rowFmt, "ID", "Time", "Container", "Volume", "Hostname")
-	if err != nil {
-		return fmt.Errorf("writing output: %w", err)
+func readSnapshotFilters(flags *pflag.FlagSet) snapshotFilters {
+	return snapshotFilters{
+		container: flagString(flags, "container"),
+		volume:    flagString(flags, "volume"),
+		hostname:  flagString(flags, "hostname"),
 	}
+}
 
-	_, err = fmt.Fprintf(out, rowFmt, "----------", "--------------------",
-		"--------------------", "-------------------------", "--------")
+// tags returns the restic tag filters derived from the user-provided flags.
+// An empty flag contributes nothing; tags are AND-combined by the caller.
+func (f snapshotFilters) tags() []string {
+	return buildFilterTags(f.container, f.volume, f.hostname)
+}
+
+func flagString(flags *pflag.FlagSet, name string) string {
+	v, _ := flags.GetString(name)
+
+	return v
+}
+
+func printSnapshots(out io.Writer, snapshots []restic.Snapshot) error {
+	table := tabwriter.NewWriter(out, 0, 0, snapshotColumnPadding, ' ', 0)
+
+	_, err := fmt.Fprintln(table, "ID\tTime\tContainer\tVolume\tHostname")
 	if err != nil {
 		return fmt.Errorf("writing output: %w", err)
 	}
 
 	for _, snap := range snapshots {
-		_, err = fmt.Fprintf(out, rowFmt,
+		_, err = fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%s\n",
 			snap.ID,
-			snap.Time.UTC().Format("2006-01-02 15:04:05"),
-			extractTag(snap.Tags, "container="),
-			extractTag(snap.Tags, "volume="),
-			extractTag(snap.Tags, "hostname="),
+			format.Time(snap.Time.UTC()),
+			extractTag(snap.Tags, tagPrefixContainer),
+			extractTag(snap.Tags, tagPrefixVolume),
+			extractTag(snap.Tags, tagPrefixHostname),
 		)
 		if err != nil {
 			return fmt.Errorf("writing output: %w", err)
 		}
+	}
+
+	err = table.Flush()
+	if err != nil {
+		return fmt.Errorf("flushing output: %w", err)
 	}
 
 	_, err = fmt.Fprintf(out, "\n%d snapshot(s)\n", len(snapshots))
@@ -125,15 +149,15 @@ func buildFilterTags(container, volume, hostname string) []string {
 	var tags []string
 
 	if container != "" {
-		tags = append(tags, "container="+container)
+		tags = append(tags, tagPrefixContainer+container)
 	}
 
 	if volume != "" {
-		tags = append(tags, "volume="+volume)
+		tags = append(tags, tagPrefixVolume+volume)
 	}
 
 	if hostname != "" {
-		tags = append(tags, "hostname="+hostname)
+		tags = append(tags, tagPrefixHostname+hostname)
 	}
 
 	return tags

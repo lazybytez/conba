@@ -97,7 +97,7 @@ func printStatus(
 
 	if len(snapshots) > 0 {
 		latest := snapshots[len(snapshots)-1]
-		latestTime = latest.Time.Format("2006-01-02 15:04:05")
+		latestTime = format.Time(latest.Time)
 	}
 
 	_, err := fmt.Fprintf(out,

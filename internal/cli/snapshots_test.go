@@ -8,6 +8,7 @@ import (
 
 	"github.com/lazybytez/conba/internal/cli"
 	"github.com/lazybytez/conba/internal/restic"
+	"github.com/spf13/pflag"
 )
 
 func TestNewSnapshotsCommand_Use(t *testing.T) {
@@ -126,6 +127,39 @@ func TestBuildFilterTags_NoneSet(t *testing.T) {
 
 	if len(got) != 0 {
 		t.Errorf("len = %d, want 0", len(got))
+	}
+}
+
+func TestReadSnapshotFilters_ReadsAllFlags(t *testing.T) {
+	t.Parallel()
+
+	cmd := cli.NewSnapshotsCommand()
+
+	mustSet(t, cmd, "container", "app")
+	mustSet(t, cmd, "volume", "data")
+	mustSet(t, cmd, "hostname", "h1")
+
+	got := cli.ReadSnapshotFilters(cmd.Flags())
+	tags := cli.SnapshotFiltersTags(got)
+
+	want := []string{"container=app", "volume=data", "hostname=h1"}
+	if len(tags) != len(want) {
+		t.Fatalf("len = %d, want %d", len(tags), len(want))
+	}
+
+	for i := range want {
+		if tags[i] != want[i] {
+			t.Errorf("tags[%d] = %q, want %q", i, tags[i], want[i])
+		}
+	}
+}
+
+func mustSet(t *testing.T, cmd interface{ Flags() *pflag.FlagSet }, name, value string) {
+	t.Helper()
+
+	err := cmd.Flags().Set(name, value)
+	if err != nil {
+		t.Fatalf("set flag %q: %v", name, err)
 	}
 }
 
