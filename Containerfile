@@ -38,7 +38,7 @@ RUN apk add --no-cache tini && \
 WORKDIR /app
 
 COPY --from=builder --link --chmod=755 /build/conba ./conba
-COPY --from=restic --link --chmod=755 /usr/bin/restic ./restic
+COPY --from=restic --link --chmod=755 /usr/bin/restic /usr/local/bin/restic
 
 LABEL org.opencontainers.image.title="conba"
 LABEL org.opencontainers.image.description="A simple restic-based container volume backup tool"
