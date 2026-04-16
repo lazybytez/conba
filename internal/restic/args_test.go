@@ -45,7 +45,7 @@ func TestBuildBackupArgs(t *testing.T) {
 			tags: []string{"web", "production"},
 			want: []string{
 				"backup", "/data/volumes/app", "--json",
-				"--tag", "web", "--tag", "production",
+				"--tag", "web,production",
 			},
 		},
 	}
@@ -79,7 +79,7 @@ func TestBuildSnapshotArgs(t *testing.T) {
 		{
 			name: "multiple tags",
 			tags: []string{"web", "production"},
-			want: []string{"snapshots", "--json", "--tag", "web", "--tag", "production"},
+			want: []string{"snapshots", "--json", "--tag", "web,production"},
 		},
 	}
 
@@ -210,7 +210,7 @@ func TestBuildForgetArgs_EdgeCases(t *testing.T) {
 			},
 			want: []string{
 				"forget", "--prune", "--json",
-				"--tag", "web", "--tag", "production",
+				"--tag", "web,production",
 				"--keep-daily", "3",
 			},
 		},
