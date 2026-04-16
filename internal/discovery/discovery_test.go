@@ -35,12 +35,14 @@ func TestDiscover_ExpandsMounts(t *testing.T) {
 					{
 						Type:        runtime.MountTypeVolume,
 						Name:        "data",
+						Source:      "",
 						Destination: "/data",
 						ReadOnly:    false,
 					},
 					{
 						Type:        runtime.MountTypeVolume,
 						Name:        "logs",
+						Source:      "",
 						Destination: "/logs",
 						ReadOnly:    false,
 					},
@@ -81,12 +83,14 @@ func TestDiscover_SkipsTmpfs(t *testing.T) {
 					{
 						Type:        runtime.MountTypeVolume,
 						Name:        "data",
+						Source:      "",
 						Destination: "/data",
 						ReadOnly:    false,
 					},
 					{
 						Type:        runtime.MountTypeTmpfs,
 						Name:        "",
+						Source:      "",
 						Destination: "/tmp",
 						ReadOnly:    false,
 					},
@@ -123,6 +127,7 @@ func TestDiscover_IncludesBindMounts(t *testing.T) {
 					{
 						Type:        runtime.MountTypeBind,
 						Name:        "config",
+						Source:      "",
 						Destination: "/etc/app",
 						ReadOnly:    false,
 					},

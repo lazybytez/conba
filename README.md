@@ -80,6 +80,33 @@ Run a backup:
 ./bin/conba backup
 ```
 
+### Running the container image locally
+
+After `make docker/build`, run the built image with your local (gitignored)
+config bind-mounted in. This is the recommended way to smoke-test conba
+against the host's Docker daemon without installing the binary:
+
+```sh
+docker run --rm -it \
+  --hostname "$(hostname)" \
+  -v "$PWD/conba-config.test.yaml:/app/conba.yaml:ro" \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v /var/lib/docker/volumes:/var/lib/docker/volumes:ro \
+  -v /tmp/conba-restic-test-repo:/tmp/conba-restic-test-repo \
+  ghcr.io/lazybytez/conba:edge \
+  backup --dry-run
+```
+
+Drop `--dry-run` to execute the backup. `--hostname "$(hostname)"` makes
+snapshots carry the real host's name instead of a random container ID
+(conba tags every snapshot with the hostname). The Docker socket mount
+lets conba discover running containers; `/var/lib/docker/volumes` exposes
+the actual volume contents so they can be read for snapshotting;
+`/tmp/conba-restic-test-repo` is the writable local restic repository
+(matching `restic.repository` in the test config); and the config is
+mounted to `/app/conba.yaml`, the default lookup path inside the image's
+working directory.
+
 ## Container Labels
 
 Configure per-container behavior with Docker labels:

@@ -19,6 +19,8 @@ var (
 	PrintNotInitialized = printNotInitialized
 	PrintLocked         = printLocked
 	HandleStatusError   = handleStatusError
+
+	PrintDryRun = printDryRun
 )
 
 // Ensure function signatures stay in sync with aliases.
@@ -32,4 +34,6 @@ var (
 	_ func(io.Writer, string) error                                      = printNotInitialized
 	_ func(io.Writer, string) error                                      = printLocked
 	_ func(io.Writer, string, error) error                               = handleStatusError
+
+	_ func(io.Writer, []discovery.Target) error = printDryRun
 )

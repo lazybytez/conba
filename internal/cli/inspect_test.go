@@ -67,6 +67,7 @@ func newMountInfo(mountType, name, destination string) runtime.MountInfo {
 	return runtime.MountInfo{
 		Type:        mountType,
 		Name:        name,
+		Source:      "",
 		Destination: destination,
 		ReadOnly:    false,
 	}
