@@ -28,14 +28,11 @@ RUN CGO_ENABLED=0 go build -buildvcs=false \
     -o /build/conba ./cmd/conba
 
 # Stage 3: Minimal runtime image
+# Runs as root: conba needs access to the Docker socket (root:docker 660)
+# and /var/lib/docker/volumes (root-owned) to snapshot container volumes.
 FROM docker.io/library/alpine:${alpine_version} AS base
 
-ARG container_uid=1000
-ARG container_gid=1000
-
-RUN addgroup -g "${container_gid}" conba && \
-    adduser -u "${container_uid}" -G conba -h /home/conba -s /bin/sh -S conba && \
-    apk add --no-cache tini && \
+RUN apk add --no-cache tini && \
     rm -rf /var/cache/apk/* /tmp/*
 
 WORKDIR /app
@@ -48,7 +45,5 @@ LABEL org.opencontainers.image.description="A simple restic-based container volu
 LABEL org.opencontainers.image.vendor="Lazy Bytez"
 LABEL org.opencontainers.image.source="https://github.com/lazybytez/conba"
 LABEL org.opencontainers.image.licenses="MIT"
-
-USER conba
 
 ENTRYPOINT ["/sbin/tini", "--", "/app/conba"]
