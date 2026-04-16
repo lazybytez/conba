@@ -1,6 +1,9 @@
 package restic
 
-import "strconv"
+import (
+	"strconv"
+	"strings"
+)
 
 // BuildInitArgs returns the argument slice for initialising a restic repository.
 func BuildInitArgs() []string {
@@ -49,12 +52,16 @@ func BuildStatsArgs() []string {
 	return []string{"stats", "--json"}
 }
 
+// appendTags joins all tags into a single --tag flag. Restic treats values
+// within one --tag (comma-separated) as AND, and repeated --tag flags as OR;
+// conba always wants AND semantics for filtering, and backup accepts the
+// same comma form as additive tags.
 func appendTags(args []string, tags []string) []string {
-	for _, tag := range tags {
-		args = append(args, "--tag", tag)
+	if len(tags) == 0 {
+		return args
 	}
 
-	return args
+	return append(args, "--tag", strings.Join(tags, ","))
 }
 
 func appendKeep(args []string, flag string, value int) []string {
