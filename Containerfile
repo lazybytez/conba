@@ -17,8 +17,7 @@ FROM docker.io/library/golang:${go_version} AS test
 # Copy restic + docker CLI + docker compose plugin from the pinned upstreams
 COPY --from=restic --link /usr/bin/restic /usr/bin/restic
 COPY --from=docker-cli --link /usr/local/bin/docker /usr/local/bin/docker
-COPY --from=docker-cli --link /usr/local/libexec/docker/cli-plugins/docker-compose \
-    /usr/local/libexec/docker/cli-plugins/docker-compose
+COPY --from=docker-cli --link /usr/local/libexec/docker/cli-plugins/ /usr/local/libexec/docker/cli-plugins/
 
 ARG gotestsum_version=v1.13.0
 
