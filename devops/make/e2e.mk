@@ -8,7 +8,8 @@ E2E_COMPOSE := $(DOCKER_EXECUTABLE) compose -f test/e2e/compose.yaml
 E2E_RUN := $(DOCKER_EXECUTABLE) run --rm \
 	-v /var/run/docker.sock:/var/run/docker.sock \
 	-v /var/lib/docker/volumes:/var/lib/docker/volumes \
-	-v $(CURDIR):/app -w /app
+	-v $(CURDIR):/app -w /app \
+	-e CONBA_BINARY=/app/bin/conba
 
 E2E_JUNIT := test/e2e/junit.xml
 
@@ -28,8 +29,8 @@ go/test-e2e/run:
 		gotestsum --junitfile $(E2E_JUNIT) --format testname --rerun-fails=0 \
 			-- -tags=e2e -p 1 -count=1 ./test/e2e/...
 
-# Full e2e: build image, bring fixture up, run tests, tear down (always, even on failure)
-go/test-e2e: go/test-image .WAIT go/test-e2e/up
+# Full e2e: build conba + test image, bring fixture up, run tests, tear down (always, even on failure)
+go/test-e2e: go/build .WAIT go/test-image .WAIT go/test-e2e/up
 	@trap '$(MAKE) --no-print-directory go/test-e2e/down' EXIT; \
 		$(MAKE) --no-print-directory go/test-e2e/run
 
