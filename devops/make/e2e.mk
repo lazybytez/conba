@@ -29,8 +29,9 @@ go/test-e2e/run:
 		gotestsum --junitfile $(E2E_JUNIT) --format testname --rerun-fails=0 \
 			-- -tags=e2e -p 1 -count=1 ./test/e2e/...
 
-# Full e2e: build conba + test image, bring fixture up, run tests, tear down (always, even on failure)
-go/test-e2e: go/build .WAIT go/test-image .WAIT go/test-e2e/up
+# Full e2e: build conba + test image, bring fixture up, run tests, tear down (always, even on failure).
+# Prereqs run in declaration order under serial make (the default); we do not use -j.
+go/test-e2e: go/build go/test-image go/test-e2e/up
 	@trap '$(MAKE) --no-print-directory go/test-e2e/down' EXIT; \
 		$(MAKE) --no-print-directory go/test-e2e/run
 
