@@ -1,0 +1,103 @@
+# E2E test fixture for conba.
+# Defines three services on the conba-e2e network:
+#   - conba-e2e-mysql: MySQL 8.0 with a pre-seeded widgets table
+#   - conba-e2e-app:   Alpine container with a small /data tree (backed up by conba)
+#   - conba-e2e-ignored: Alpine container labelled conba.enabled=false (excluded from backup)
+#
+# Usage:
+#   docker compose -f test/e2e/compose.yaml up -d --wait --wait-timeout 60
+#   docker compose -f test/e2e/compose.yaml down -v
+
+name: conba-e2e
+
+services:
+    conba-e2e-mysql:
+        build:
+            context: ./compose/mysql
+            dockerfile: Containerfile
+        image: conba-e2e-mysql:8.0.45
+        container_name: conba-e2e-mysql
+        environment:
+            MYSQL_ROOT_PASSWORD: conba-e2e
+            MYSQL_DATABASE: conba_e2e
+        volumes:
+            - conba-e2e-mysql-data:/var/lib/mysql
+        healthcheck:
+            test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-pconba-e2e"]
+            interval: 5s
+            timeout: 5s
+            retries: 10
+            start_period: 30s
+        networks:
+            - conba-e2e
+        cap_drop:
+            - ALL
+        cap_add:
+            - CHOWN
+            - FOWNER
+            - SETUID
+            - SETGID
+            - DAC_OVERRIDE
+        security_opt:
+            - no-new-privileges:true
+
+    conba-e2e-app:
+        image: docker.io/library/alpine:3.20.10
+        container_name: conba-e2e-app
+        volumes:
+            - conba-e2e-app-data:/data
+        command: >
+            sh -c 'mkdir -p /data/configs
+            && [ -f /data/hello.txt ] || echo hello > /data/hello.txt
+            && [ -f /data/configs/version.txt ] || echo v1 > /data/configs/version.txt
+            && exec tail -f /dev/null'
+        healthcheck:
+            test: ["CMD", "test", "-f", "/data/hello.txt"]
+            interval: 5s
+            timeout: 5s
+            retries: 6
+            start_period: 5s
+        networks:
+            - conba-e2e
+        cap_drop:
+            - ALL
+        security_opt:
+            - no-new-privileges:true
+        read_only: true
+        tmpfs:
+            - /tmp:noexec
+
+    conba-e2e-ignored:
+        image: docker.io/library/alpine:3.20.10
+        container_name: conba-e2e-ignored
+        volumes:
+            - conba-e2e-ignored-data:/data
+        command: >
+            sh -c '[ -f /data/should-not-be-backed-up.txt ] || echo ignored > /data/should-not-be-backed-up.txt
+            && exec tail -f /dev/null'
+        labels:
+            conba.enabled: "false"
+        healthcheck:
+            test: ["CMD", "test", "-f", "/data/should-not-be-backed-up.txt"]
+            interval: 5s
+            timeout: 5s
+            retries: 6
+            start_period: 5s
+        networks:
+            - conba-e2e
+        cap_drop:
+            - ALL
+        security_opt:
+            - no-new-privileges:true
+        read_only: true
+        tmpfs:
+            - /tmp:noexec
+
+volumes:
+    conba-e2e-mysql-data:
+    conba-e2e-app-data:
+    conba-e2e-ignored-data:
+
+networks:
+    conba-e2e:
+        name: conba-e2e

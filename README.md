@@ -145,6 +145,24 @@ make fmt         # Format code
 make clean       # Remove build artifacts
 ```
 
+### End-to-end tests
+
+The `test/e2e/` package exercises the compiled `conba` binary against a real
+Docker daemon and a real restic filesystem repository. A small Docker Compose
+stack (`test/e2e/compose.yaml`) provides MySQL plus two Alpine services as
+backup targets. Run the full suite with:
+
+```sh
+make e2e
+```
+
+The target builds the test image, brings the compose fixture up, runs every
+scenario inside the test image (with `/var/run/docker.sock` and
+`/var/lib/docker/volumes` mounted), then unconditionally tears the fixture
+down. Iterative loop: `make go/test-e2e/up` once, then `make go/test-e2e/run`
+repeatedly. CI runs the same target on every PR via `.github/workflows/e2e.yml`
+and publishes per-scenario pass/fail.
+
 ### Branching
 
 | Branch | Purpose |

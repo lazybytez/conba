@@ -19,10 +19,11 @@ DOCKER_RUN := $(DOCKER_EXECUTABLE) run --rm \
 
 include devops/make/go.mk
 include devops/make/docker.mk
+include devops/make/e2e.mk
 
 .DEFAULT_GOAL := help
 
-.PHONY: build test lint help
+.PHONY: build test lint e2e help
 
 # Alias for go/build
 build: go/build
@@ -46,6 +47,14 @@ help:
 	@echo ""
 	@echo "  Docker targets:"
 	@echo "    make docker/build   Build the container image"
+	@echo ""
+	@echo "  E2E targets:"
+	@echo "    make e2e                End-to-end test suite (image + up + run + down)"
+	@echo "    make go/test-e2e        Same as make e2e"
+	@echo "    make go/test-e2e/up     Bring up the e2e compose fixture"
+	@echo "    make go/test-e2e/down   Tear down the e2e compose fixture"
+	@echo "    make go/test-e2e/run    Run e2e tests against the current fixture"
+	@echo "    make go/lint-e2e        Lint with the e2e build tag"
 	@echo ""
 	@echo "  Aliases:"
 	@echo "    make build          Alias for go/build"
