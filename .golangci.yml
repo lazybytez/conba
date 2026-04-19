@@ -32,6 +32,21 @@ linters:
           - gosec
         path: _test\.go
         text: "G101:"
+      # E2E suite runs with -p 1 (t.Parallel is forbidden) and uses the
+      # TestMain package-var pattern; those two linters contradict the
+      # test design and cannot be satisfied by code changes.
+      - linters:
+          - paralleltest
+          - gochecknoglobals
+        path: ^test/e2e/
+      # Narrow gosec exclusion for the three specific rules that fire on
+      # every test shell-out and t.TempDir() file read. Input is
+      # test-controlled so the rules carry no signal here. Other gosec
+      # rules (G101 hardcoded creds, etc.) still apply.
+      - linters:
+          - gosec
+        path: ^test/e2e/
+        text: "G204:|G304:|G703:"
 
 formatters:
   enable:

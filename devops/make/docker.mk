@@ -1,4 +1,4 @@
-# conba — Docker image build targets
+# conba - Docker image build targets
 
 .PHONY: docker/build
 

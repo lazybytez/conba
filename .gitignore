@@ -32,3 +32,6 @@ vendor/
 
 # Test config
 conba-config.test.yaml
+
+# e2e test runner output
+test/e2e/junit.xml
