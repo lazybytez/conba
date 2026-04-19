@@ -1,7 +1,7 @@
 # conba — End-to-end test targets (Docker-based, requires Docker socket access)
 # All e2e commands run inside containers; the test image must be built first.
 
-.PHONY: go/test-e2e go/test-e2e/up go/test-e2e/down go/test-e2e/run go/lint-e2e e2e
+.PHONY: go/test-e2e go/test-e2e/up go/test-e2e/down go/test-e2e/run e2e
 
 E2E_COMPOSE := $(DOCKER_EXECUTABLE) compose -f test/e2e/compose.yaml
 
@@ -28,18 +28,10 @@ go/test-e2e/run:
 		gotestsum --junitfile $(E2E_JUNIT) --format testname --rerun-fails=0 \
 			-- -tags=e2e -p 1 -count=1 ./test/e2e/...
 
-# Build the test image, bring up the fixture, run the suite, and tear down regardless of outcome
-go/test-e2e: go/test-image
-	@$(MAKE) --no-print-directory go/test-e2e/up
-	@( $(MAKE) --no-print-directory go/test-e2e/run ); \
-		status=$$?; \
-		$(MAKE) --no-print-directory go/test-e2e/down; \
-		exit $$status
-
-# Lint with the e2e build tag
-go/lint-e2e:
-	$(DOCKER_RUN) $(LINT_IMAGE) \
-		golangci-lint run --build-tags=e2e ./...
+# Full e2e: build image, bring fixture up, run tests, tear down (always, even on failure)
+go/test-e2e: go/test-image .WAIT go/test-e2e/up
+	@trap '$(MAKE) --no-print-directory go/test-e2e/down' EXIT; \
+		$(MAKE) --no-print-directory go/test-e2e/run
 
 # Alias for go/test-e2e
 e2e: go/test-e2e

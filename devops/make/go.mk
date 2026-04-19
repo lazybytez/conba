@@ -23,10 +23,10 @@ go/test: go/test-image
 	$(DOCKER_RUN) $(TEST_IMAGE) \
 		go test -race -v ./...
 
-# Run golangci-lint
+# Run golangci-lint across the default build set and the e2e-tagged files
 go/lint:
 	$(DOCKER_RUN) $(LINT_IMAGE) \
-		golangci-lint run ./...
+		golangci-lint run --build-tags=e2e ./...
 
 # Run tests with coverage report
 go/coverage: go/test-image

@@ -54,7 +54,6 @@ help:
 	@echo "    make go/test-e2e/up     Bring up the e2e compose fixture"
 	@echo "    make go/test-e2e/down   Tear down the e2e compose fixture"
 	@echo "    make go/test-e2e/run    Run e2e tests against the current fixture"
-	@echo "    make go/lint-e2e        Lint with the e2e build tag"
 	@echo ""
 	@echo "  Aliases:"
 	@echo "    make build          Alias for go/build"
