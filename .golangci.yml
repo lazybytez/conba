@@ -40,7 +40,7 @@ linters:
           - gochecknoglobals
         path: ^test/e2e/
       # Narrow gosec exclusion for the three specific rules that fire on
-      # every test shell-out and t.TempDir() file read — input is
+      # every test shell-out and t.TempDir() file read. Input is
       # test-controlled so the rules carry no signal here. Other gosec
       # rules (G101 hardcoded creds, etc.) still apply.
       - linters:

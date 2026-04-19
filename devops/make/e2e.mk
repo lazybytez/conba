@@ -1,4 +1,4 @@
-# conba — End-to-end test targets (Docker-based, requires Docker socket access)
+# conba - End-to-end test targets (Docker-based, requires Docker socket access)
 # All e2e commands run inside containers; the test image must be built first.
 
 .PHONY: go/test-e2e go/test-e2e/up go/test-e2e/down go/test-e2e/run e2e

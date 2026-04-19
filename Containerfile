@@ -1,4 +1,4 @@
-# Global ARGs — single source of truth for base image versions
+# Global ARGs: single source of truth for base image versions
 ARG go_version=1.26
 ARG alpine_version=3.23
 ARG restic_version=0.18.1
@@ -10,7 +10,7 @@ FROM docker.io/restic/restic:${restic_version} AS restic
 # Stage 0b: Source the pinned Docker CLI binary (and the compose plugin)
 FROM docker.io/library/docker:${docker_cli_version}-cli AS docker-cli
 
-# Stage 1: Test image — Debian-based for CGO (required by -race detector)
+# Stage 1: Test image. Debian-based for CGO (required by -race detector).
 # Runs as root: needs Docker socket + /var/lib/docker/volumes access.
 FROM docker.io/library/golang:${go_version} AS test
 

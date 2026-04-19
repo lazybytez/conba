@@ -1,4 +1,4 @@
-# conba — project root Makefile
+# conba - project root Makefile
 
 # Variables
 MODULE            ?= github.com/lazybytez/conba

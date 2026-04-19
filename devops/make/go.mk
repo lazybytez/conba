@@ -1,4 +1,4 @@
-# conba — Go build targets (Docker-based)
+# conba - Go build targets (Docker-based)
 # All Go commands run inside containers; no local Go installation required.
 
 .PHONY: go/build go/test go/test-image go/lint go/coverage go/fmt go/clean
