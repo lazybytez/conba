@@ -8,8 +8,7 @@ E2E_COMPOSE := $(DOCKER_EXECUTABLE) compose -f test/e2e/compose.yaml
 E2E_RUN := $(DOCKER_EXECUTABLE) run --rm \
 	-v /var/run/docker.sock:/var/run/docker.sock \
 	-v /var/lib/docker/volumes:/var/lib/docker/volumes \
-	-v $(CURDIR):/app -w /app \
-	--network host
+	-v $(CURDIR):/app -w /app
 
 E2E_JUNIT := test/e2e/junit.xml
 
