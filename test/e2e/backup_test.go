@@ -44,8 +44,6 @@ func hasTagWithPrefix(tags []string, prefix string) bool {
 // backup produces one snapshot per non-ignored container, zero for the
 // label-disabled one, and that every snapshot carries both container= and
 // volume= tags.
-//
-//nolint:paralleltest // Suite runs with -p 1; t.Parallel() is forbidden.
 func TestBackup_FreshRepo_DiscoversAllNonIgnoredTargets(t *testing.T) {
 	resetFixture(t)
 
@@ -63,12 +61,12 @@ func TestBackup_FreshRepo_DiscoversAllNonIgnoredTargets(t *testing.T) {
 	cfg := runConfig{Dir: dir, Stdin: nil, Env: nil}
 
 	initResult := runConba(t, cfg, "init")
-	requireExit(t, initResult, "conba init", 0)
+	requireSuccess(t, initResult, "conba init")
 
 	backupResult := runConba(t, cfg, "backup")
-	requireExit(t, backupResult, "conba backup", 0)
+	requireSuccess(t, backupResult, "conba backup")
 
-	snaps := resticSnapshots(t, repoPath, defaultResticPassword)
+	snaps := resticSnapshots(t, repoPath)
 	if len(snaps) == 0 {
 		t.Fatalf("expected at least one snapshot after backup; got none")
 	}
@@ -121,8 +119,6 @@ func allTags(snaps []ResticSnapshot) []string {
 
 // TestBackup_DryRun_NoSnapshots asserts that `conba backup --dry-run` writes
 // no snapshots to the repository.
-//
-//nolint:paralleltest // Suite runs with -p 1; t.Parallel() is forbidden.
 func TestBackup_DryRun_NoSnapshots(t *testing.T) {
 	resetFixture(t)
 
@@ -140,12 +136,12 @@ func TestBackup_DryRun_NoSnapshots(t *testing.T) {
 	cfg := runConfig{Dir: dir, Stdin: nil, Env: nil}
 
 	initResult := runConba(t, cfg, "init")
-	requireExit(t, initResult, "conba init", 0)
+	requireSuccess(t, initResult, "conba init")
 
 	dryResult := runConba(t, cfg, "backup", "--dry-run")
-	requireExit(t, dryResult, "conba backup --dry-run", 0)
+	requireSuccess(t, dryResult, "conba backup --dry-run")
 
-	snaps := resticSnapshots(t, repoPath, defaultResticPassword)
+	snaps := resticSnapshots(t, repoPath)
 	if len(snaps) != 0 {
 		t.Fatalf("expected 0 snapshots after --dry-run; got %d", len(snaps))
 	}
@@ -154,8 +150,6 @@ func TestBackup_DryRun_NoSnapshots(t *testing.T) {
 // TestBackup_RepeatedBackup_ProducesTwoSnapshotsPerTarget asserts that each
 // non-ignored container has exactly two snapshots after two backup runs.
 // Restic deduplicates data but still records one snapshot per invocation.
-//
-//nolint:paralleltest // Suite runs with -p 1; t.Parallel() is forbidden.
 func TestBackup_RepeatedBackup_ProducesTwoSnapshotsPerTarget(t *testing.T) {
 	resetFixture(t)
 
@@ -173,15 +167,15 @@ func TestBackup_RepeatedBackup_ProducesTwoSnapshotsPerTarget(t *testing.T) {
 	cfg := runConfig{Dir: dir, Stdin: nil, Env: nil}
 
 	initResult := runConba(t, cfg, "init")
-	requireExit(t, initResult, "conba init", 0)
+	requireSuccess(t, initResult, "conba init")
 
 	firstBackup := runConba(t, cfg, "backup")
-	requireExit(t, firstBackup, "first conba backup", 0)
+	requireSuccess(t, firstBackup, "first conba backup")
 
 	secondBackup := runConba(t, cfg, "backup")
-	requireExit(t, secondBackup, "second conba backup", 0)
+	requireSuccess(t, secondBackup, "second conba backup")
 
-	snaps := resticSnapshots(t, repoPath, defaultResticPassword)
+	snaps := resticSnapshots(t, repoPath)
 
 	mysqlSnaps := snapshotsForContainer(snaps, containerMySQL)
 	if len(mysqlSnaps) != 2 {
@@ -210,8 +204,6 @@ func TestBackup_RepeatedBackup_ProducesTwoSnapshotsPerTarget(t *testing.T) {
 
 // TestBackup_DataMutationReflectedInDiff backs up twice with a file added
 // between runs and asserts `restic diff` flags the new file with a `+` marker.
-//
-//nolint:paralleltest // Suite runs with -p 1; t.Parallel() is forbidden.
 func TestBackup_DataMutationReflectedInDiff(t *testing.T) {
 	resetFixture(t)
 
@@ -229,21 +221,21 @@ func TestBackup_DataMutationReflectedInDiff(t *testing.T) {
 	cfg := runConfig{Dir: dir, Stdin: nil, Env: nil}
 
 	initResult := runConba(t, cfg, "init")
-	requireExit(t, initResult, "conba init", 0)
+	requireSuccess(t, initResult, "conba init")
 
 	firstBackup := runConba(t, cfg, "backup")
-	requireExit(t, firstBackup, "first conba backup", 0)
+	requireSuccess(t, firstBackup, "first conba backup")
 
 	round1AppID := requireSingleAppSnapshotID(t, repoPath)
 
-	dockerExec(t, containerApp, "sh", "-c", "echo fresh > /data/added.txt")
+	composeExec(t, containerApp, nil, "sh", "-c", "echo fresh > /data/added.txt")
 
 	secondBackup := runConba(t, cfg, "backup")
-	requireExit(t, secondBackup, "second conba backup", 0)
+	requireSuccess(t, secondBackup, "second conba backup")
 
 	round2AppID := requireNewAppSnapshotID(t, repoPath, round1AppID)
 
-	diff := resticDiff(t, repoPath, defaultResticPassword, round1AppID, round2AppID)
+	diff := resticDiff(t, repoPath, round1AppID, round2AppID)
 
 	if !strings.Contains(diff, "added.txt") {
 		t.Fatalf("restic diff does not mention added.txt:\n%s", diff)
@@ -259,7 +251,7 @@ func TestBackup_DataMutationReflectedInDiff(t *testing.T) {
 func requireSingleAppSnapshotID(t *testing.T, repoPath string) string {
 	t.Helper()
 
-	snaps := resticSnapshots(t, repoPath, defaultResticPassword)
+	snaps := resticSnapshots(t, repoPath)
 
 	appSnaps := snapshotsForContainer(snaps, containerApp)
 	if len(appSnaps) != 1 {
@@ -277,7 +269,7 @@ func requireSingleAppSnapshotID(t *testing.T, repoPath string) string {
 func requireNewAppSnapshotID(t *testing.T, repoPath, excludeID string) string {
 	t.Helper()
 
-	snaps := resticSnapshots(t, repoPath, defaultResticPassword)
+	snaps := resticSnapshots(t, repoPath)
 
 	appSnaps := snapshotsForContainer(snaps, containerApp)
 	if len(appSnaps) != 2 {

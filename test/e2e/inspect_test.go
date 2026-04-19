@@ -9,8 +9,6 @@ import (
 
 // TestInspect_IncludedAndExcludedSections asserts that `conba inspect` lists
 // mysql and app under Included and the label-disabled container under Excluded.
-//
-//nolint:paralleltest // Suite runs with -p 1; t.Parallel() is forbidden.
 func TestInspect_IncludedAndExcludedSections(t *testing.T) {
 	resetFixture(t)
 
@@ -28,7 +26,7 @@ func TestInspect_IncludedAndExcludedSections(t *testing.T) {
 	cfg := runConfig{Dir: dir, Stdin: nil, Env: nil}
 
 	inspectResult := runConba(t, cfg, "inspect")
-	requireExit(t, inspectResult, "conba inspect", 0)
+	requireSuccess(t, inspectResult, "conba inspect")
 
 	requireStdoutContains(t, inspectResult, "=== Included ===")
 	requireStdoutContains(t, inspectResult, "=== Excluded ===")

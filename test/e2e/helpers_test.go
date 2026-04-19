@@ -36,14 +36,14 @@ const (
 	defaultResticPassword = "e2e-pass"
 	conbaConfigFilename   = "conba.yaml"
 
+	e2eComposeFile = "compose.yaml"
+
 	conbaCommandTimeout  = 30 * time.Second
 	dockerCommandTimeout = 15 * time.Second
 )
 
 // defaultIncludeNamePatterns pins container discovery to the e2e fixture
 // so tests never accidentally target other containers on the host.
-//
-//nolint:gochecknoglobals // Shared default consumed by scenarios.
 var defaultIncludeNamePatterns = []string{"^conba-e2e-"}
 
 // runConfig configures a single invocation of the conba binary.
@@ -72,16 +72,10 @@ func runConba(t *testing.T, cfg runConfig, args ...string) runResult {
 	ctx, cancel := context.WithTimeout(context.Background(), conbaCommandTimeout)
 	defer cancel()
 
-	//nolint:gosec // binaryPath is built by TestMain; args are test-controlled.
 	cmd := exec.CommandContext(ctx, binaryPath, args...)
 	cmd.Dir = cfg.Dir
 	cmd.Stdin = cfg.Stdin
-
-	if cfg.Env != nil {
-		cmd.Env = cfg.Env
-	} else {
-		cmd.Env = os.Environ()
-	}
+	cmd.Env = resolveEnv(cfg.Env)
 
 	var stdout, stderr bytes.Buffer
 
@@ -111,6 +105,16 @@ func runConba(t *testing.T, cfg runConfig, args ...string) runResult {
 	result.Err = fmt.Errorf("running conba: %w", err)
 
 	return result
+}
+
+// resolveEnv returns env verbatim when the caller supplied one; otherwise
+// it inherits the current process environment.
+func resolveEnv(env []string) []string {
+	if env != nil {
+		return env
+	}
+
+	return os.Environ()
 }
 
 // configOpts is the subset of conba.yaml fields scenarios override.
@@ -217,34 +221,18 @@ func resetMySQL(t *testing.T) {
 		t.Fatalf("read %q: %v", resetSQLRelPath, err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), dockerCommandTimeout)
-	defer cancel()
-
-	cmd := exec.CommandContext(
-		ctx,
-		"docker", "exec", "-i", containerMySQL,
+	composeExec(t, containerMySQL, bytes.NewReader(resetSQL),
 		"mysql",
 		"-u"+mysqlRootUser,
 		"-p"+mysqlRootPassword,
 		mysqlDatabase,
 	)
-	cmd.Stdin = bytes.NewReader(resetSQL)
-
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf(
-			"reset mysql: %v: %s",
-			err, strings.TrimSpace(string(out)),
-		)
-	}
 }
 
 func resetApp(t *testing.T) {
 	t.Helper()
 
-	dockerExec(
-		t,
-		containerApp,
+	composeExec(t, containerApp, nil,
 		"sh", "-c",
 		"rm -rf /data/* && mkdir -p /data/configs "+
 			"&& echo hello > /data/hello.txt "+
@@ -255,32 +243,33 @@ func resetApp(t *testing.T) {
 func resetIgnored(t *testing.T) {
 	t.Helper()
 
-	dockerExec(
-		t,
-		containerIgnored,
+	composeExec(t, containerIgnored, nil,
 		"sh", "-c",
 		"rm -rf /data/* && echo ignored > /data/should-not-be-backed-up.txt",
 	)
 }
 
-// dockerExec runs `docker exec <container> <args...>` with a bounded
-// timeout and fails the test on non-zero exit.
-func dockerExec(t *testing.T, container string, args ...string) {
+// composeExec runs cmdArgs inside the named compose service via
+// `docker compose exec -T`. Fails the test on non-zero exit.
+func composeExec(t *testing.T, service string, stdin io.Reader, cmdArgs ...string) {
 	t.Helper()
 
 	ctx, cancel := context.WithTimeout(context.Background(), dockerCommandTimeout)
 	defer cancel()
 
-	argv := append([]string{"exec", container}, args...)
+	argv := append(
+		[]string{"compose", "-f", e2eComposeFile, "exec", "-T", service},
+		cmdArgs...,
+	)
 
-	//nolint:gosec // Fixed "docker" binary and controlled args under test scope.
 	cmd := exec.CommandContext(ctx, "docker", argv...)
+	cmd.Stdin = stdin
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf(
-			"docker exec %s %v: %v: %s",
-			container, args, err, strings.TrimSpace(string(out)),
+			"docker compose exec %s %v: %v: %s",
+			service, cmdArgs, err, strings.TrimSpace(string(out)),
 		)
 	}
 }
@@ -290,7 +279,6 @@ func dockerExec(t *testing.T, container string, args ...string) {
 func readFile(t *testing.T, path string) []byte {
 	t.Helper()
 
-	//nolint:gosec // Path is under t.TempDir(), controlled by the test.
 	b, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read %q: %v", path, err)
@@ -308,21 +296,19 @@ func requireStdoutContains(t *testing.T, result runResult, want string) {
 	}
 }
 
-// requireExit fails unless result's exit code equals want and no start
-// error is set.
-//
-//nolint:unparam // non-zero exit cases are expected in later scenarios.
-func requireExit(t *testing.T, result runResult, cmd string, want int) {
+// requireSuccess fails the test unless the command ran cleanly: no start
+// error and exit code 0.
+func requireSuccess(t *testing.T, result runResult, cmd string) {
 	t.Helper()
 
 	if result.Err != nil {
 		t.Fatalf("runConba %s: unexpected start error: %v", cmd, result.Err)
 	}
 
-	if result.ExitCode != want {
+	if result.ExitCode != 0 {
 		t.Fatalf(
-			"%s exited with %d, want %d; stderr=%q stdout=%q",
-			cmd, result.ExitCode, want, result.Stderr, result.Stdout,
+			"%s exited with %d, want 0; stderr=%q stdout=%q",
+			cmd, result.ExitCode, result.Stderr, result.Stdout,
 		)
 	}
 }
@@ -338,51 +324,22 @@ type ResticSnapshot struct {
 	Time     string   `json:"time"`
 }
 
-// resticSnapshots invokes `restic snapshots --json` against repoPath.
-// Skips the test if restic is not on PATH. An uninitialised repo yields
-// a nil slice with no error so callers can branch on repo existence.
-//
-//nolint:unparam // password is parameterised to mirror resticDiff and future non-default scenarios.
-func resticSnapshots(t *testing.T, repoPath, password string) []ResticSnapshot {
+// resticSnapshots invokes `restic snapshots --json` against repoPath using
+// defaultResticPassword. Skips the test if restic is not on PATH. An
+// uninitialised repo yields a nil slice with no error.
+func resticSnapshots(t *testing.T, repoPath string) []ResticSnapshot {
 	t.Helper()
 
-	_, err := exec.LookPath("restic")
+	stdout, stderr, err := runRestic(t, repoPath, "snapshots", "--json")
 	if err != nil {
-		t.Skipf("restic binary not found in PATH, e2e harness requires it: %v", err)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), dockerCommandTimeout)
-	defer cancel()
-
-	//nolint:gosec // Fixed "restic" binary and controlled args under test scope.
-	cmd := exec.CommandContext(ctx, "restic", "-r", repoPath, "snapshots", "--json")
-
-	env := append(os.Environ(), "RESTIC_PASSWORD="+password)
-	cmd.Env = env
-
-	var stdout, stderr bytes.Buffer
-
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err = cmd.Run()
-	if err != nil {
-		// Treat an uninitialised repo as "no snapshots"; callers can
-		// distinguish empty from missing via repo path existence.
-		stderrStr := stderr.String()
-		if strings.Contains(stderrStr, "unable to open") ||
-			strings.Contains(stderrStr, "does not exist") ||
-			strings.Contains(stderrStr, "Is there a repository at") {
+		if isResticMissingRepo(stderr) {
 			return nil
 		}
 
-		t.Fatalf(
-			"restic snapshots: %v: %s",
-			err, strings.TrimSpace(stderrStr),
-		)
+		t.Fatalf("restic snapshots: %v: %s", err, strings.TrimSpace(stderr))
 	}
 
-	raw := bytes.TrimSpace(stdout.Bytes())
+	raw := bytes.TrimSpace([]byte(stdout))
 	if len(raw) == 0 {
 		return nil
 	}
@@ -391,10 +348,7 @@ func resticSnapshots(t *testing.T, repoPath, password string) []ResticSnapshot {
 
 	err = json.Unmarshal(raw, &snapshots)
 	if err != nil {
-		t.Fatalf(
-			"parse restic snapshots JSON: %v: %s",
-			err, string(raw),
-		)
+		t.Fatalf("parse restic snapshots JSON: %v: %s", err, string(raw))
 	}
 
 	return snapshots
@@ -402,7 +356,24 @@ func resticSnapshots(t *testing.T, repoPath, password string) []ResticSnapshot {
 
 // resticDiff runs `restic diff a b` and returns the combined output
 // trimmed of trailing whitespace. Diff failures fail the test.
-func resticDiff(t *testing.T, repoPath, password, snapA, snapB string) string {
+func resticDiff(t *testing.T, repoPath, snapA, snapB string) string {
+	t.Helper()
+
+	stdout, stderr, err := runRestic(t, repoPath, "diff", snapA, snapB)
+	if err != nil {
+		t.Fatalf(
+			"restic diff %s %s: %v: %s",
+			snapA, snapB, err, strings.TrimSpace(stderr),
+		)
+	}
+
+	return strings.TrimRight(stdout+stderr, " \t\r\n")
+}
+
+// runRestic runs the restic binary against repoPath with defaultResticPassword,
+// returning stdout, stderr, and the process exit error (if any).
+// Skips the test if restic is not on PATH.
+func runRestic(t *testing.T, repoPath string, args ...string) (string, string, error) {
 	t.Helper()
 
 	_, err := exec.LookPath("restic")
@@ -413,28 +384,32 @@ func resticDiff(t *testing.T, repoPath, password, snapA, snapB string) string {
 	ctx, cancel := context.WithTimeout(context.Background(), dockerCommandTimeout)
 	defer cancel()
 
-	//nolint:gosec // Fixed "restic" binary and controlled args under test scope.
-	cmd := exec.CommandContext(ctx, "restic", "-r", repoPath, "diff", snapA, snapB)
+	argv := append([]string{"-r", repoPath}, args...)
+	cmd := exec.CommandContext(ctx, "restic", argv...)
 
-	env := append(os.Environ(), "RESTIC_PASSWORD="+password)
-	cmd.Env = env
+	cmd.Env = append(os.Environ(), "RESTIC_PASSWORD="+defaultResticPassword)
 
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf(
-			"restic diff %s %s: %v: %s",
-			snapA, snapB, err, strings.TrimSpace(string(out)),
-		)
-	}
+	var stdout, stderr bytes.Buffer
 
-	return strings.TrimRight(string(out), " \t\r\n")
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	runErr := cmd.Run()
+
+	return stdout.String(), stderr.String(), runErr
+}
+
+// isResticMissingRepo reports whether restic's stderr indicates the repo
+// has not been initialised yet.
+func isResticMissingRepo(stderr string) bool {
+	return strings.Contains(stderr, "unable to open") ||
+		strings.Contains(stderr, "does not exist") ||
+		strings.Contains(stderr, "Is there a repository at")
 }
 
 // TestHarnessSelfCheck asserts the harness can invoke the built conba
 // binary and capture its output. If this fails the rest of the suite
 // cannot run.
-//
-//nolint:paralleltest // Suite runs with -p 1; t.Parallel() is forbidden.
 func TestHarnessSelfCheck(t *testing.T) {
 	result := runConba(
 		t,
@@ -442,21 +417,6 @@ func TestHarnessSelfCheck(t *testing.T) {
 		"--help",
 	)
 
-	if result.Err != nil {
-		t.Fatalf("runConba returned unexpected start error: %v", result.Err)
-	}
-
-	if result.ExitCode != 0 {
-		t.Fatalf(
-			"conba --help exited with %d, want 0; stderr=%q",
-			result.ExitCode, result.Stderr,
-		)
-	}
-
-	if !strings.Contains(result.Stdout, "backup") {
-		t.Fatalf(
-			"conba --help stdout does not contain 'backup'; stdout=%q",
-			result.Stdout,
-		)
-	}
+	requireSuccess(t, result, "conba --help")
+	requireStdoutContains(t, result, "backup")
 }

@@ -32,6 +32,15 @@ linters:
           - gosec
         path: _test\.go
         text: "G101:"
+      # E2E suite runs with -p 1 (t.Parallel is forbidden), uses the
+      # TestMain package-var pattern, and intentionally shells out to
+      # docker / restic / the tested binary, which triggers gosec noise
+      # that carries no signal in test code.
+      - linters:
+          - paralleltest
+          - gochecknoglobals
+          - gosec
+        path: ^test/e2e/
 
 formatters:
   enable:

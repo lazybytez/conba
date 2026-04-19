@@ -12,8 +12,6 @@ import (
 
 // TestInit_FreshRepo asserts that `conba init` creates the restic repo on
 // disk and that a follow-up `conba status` reports the ready state.
-//
-//nolint:paralleltest // Suite runs with -p 1; t.Parallel() is forbidden.
 func TestInit_FreshRepo(t *testing.T) {
 	resetFixture(t)
 
@@ -31,7 +29,7 @@ func TestInit_FreshRepo(t *testing.T) {
 	cfg := runConfig{Dir: dir, Stdin: nil, Env: nil}
 
 	initResult := runConba(t, cfg, "init")
-	requireExit(t, initResult, "conba init", 0)
+	requireSuccess(t, initResult, "conba init")
 
 	configPath := filepath.Join(repoPath, "config")
 
@@ -41,7 +39,7 @@ func TestInit_FreshRepo(t *testing.T) {
 	}
 
 	statusResult := runConba(t, cfg, "status")
-	requireExit(t, statusResult, "conba status", 0)
+	requireSuccess(t, statusResult, "conba status")
 	requireStdoutContains(t, statusResult, "Status:     ready")
 	requireStdoutContains(t, statusResult, repoPath)
 }
@@ -50,8 +48,6 @@ func TestInit_FreshRepo(t *testing.T) {
 // idempotent no-op: exit 0 and the on-disk config file is byte-identical
 // before and after. Idempotence is deliberate: the restic client swallows
 // the "already initialized" / "config file already exists" stderr family.
-//
-//nolint:paralleltest // Suite runs with -p 1; t.Parallel() is forbidden.
 func TestInit_AlreadyInitialized(t *testing.T) {
 	resetFixture(t)
 
@@ -69,14 +65,14 @@ func TestInit_AlreadyInitialized(t *testing.T) {
 	cfg := runConfig{Dir: dir, Stdin: nil, Env: nil}
 
 	first := runConba(t, cfg, "init")
-	requireExit(t, first, "first conba init", 0)
+	requireSuccess(t, first, "first conba init")
 
 	configPath := filepath.Join(repoPath, "config")
 	beforeBytes := readFile(t, configPath)
 	beforeHash := sha256.Sum256(beforeBytes)
 
 	second := runConba(t, cfg, "init")
-	requireExit(t, second, "second conba init", 0)
+	requireSuccess(t, second, "second conba init")
 
 	afterBytes := readFile(t, configPath)
 	afterHash := sha256.Sum256(afterBytes)

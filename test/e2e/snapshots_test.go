@@ -17,8 +17,6 @@ const (
 
 // TestSnapshots_FilterByContainer asserts that `snapshots --container <app>`
 // lists the app volume and omits any mysql container or volume name.
-//
-//nolint:paralleltest // Suite runs with -p 1; t.Parallel() is forbidden.
 func TestSnapshots_FilterByContainer(t *testing.T) {
 	resetFixture(t)
 
@@ -36,13 +34,13 @@ func TestSnapshots_FilterByContainer(t *testing.T) {
 	cfg := runConfig{Dir: dir, Stdin: nil, Env: nil}
 
 	initResult := runConba(t, cfg, "init")
-	requireExit(t, initResult, "conba init", 0)
+	requireSuccess(t, initResult, "conba init")
 
 	backupResult := runConba(t, cfg, "backup")
-	requireExit(t, backupResult, "conba backup", 0)
+	requireSuccess(t, backupResult, "conba backup")
 
 	snapsResult := runConba(t, cfg, "snapshots", "--container", containerApp)
-	requireExit(t, snapsResult, "conba snapshots --container conba-e2e-app", 0)
+	requireSuccess(t, snapsResult, "conba snapshots --container conba-e2e-app")
 
 	requireStdoutContains(t, snapsResult, volumeApp)
 
@@ -63,8 +61,6 @@ func TestSnapshots_FilterByContainer(t *testing.T) {
 
 // TestSnapshots_FilterByVolume asserts that `snapshots --volume <mysql>`
 // lists only the mysql volume and omits the app volume.
-//
-//nolint:paralleltest // Suite runs with -p 1; t.Parallel() is forbidden.
 func TestSnapshots_FilterByVolume(t *testing.T) {
 	resetFixture(t)
 
@@ -82,13 +78,13 @@ func TestSnapshots_FilterByVolume(t *testing.T) {
 	cfg := runConfig{Dir: dir, Stdin: nil, Env: nil}
 
 	initResult := runConba(t, cfg, "init")
-	requireExit(t, initResult, "conba init", 0)
+	requireSuccess(t, initResult, "conba init")
 
 	backupResult := runConba(t, cfg, "backup")
-	requireExit(t, backupResult, "conba backup", 0)
+	requireSuccess(t, backupResult, "conba backup")
 
 	snapsResult := runConba(t, cfg, "snapshots", "--volume", volumeMySQL)
-	requireExit(t, snapsResult, "conba snapshots --volume "+volumeMySQL, 0)
+	requireSuccess(t, snapsResult, "conba snapshots --volume "+volumeMySQL)
 
 	requireStdoutContains(t, snapsResult, volumeMySQL)
 

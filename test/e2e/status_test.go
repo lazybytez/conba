@@ -11,8 +11,6 @@ import (
 // repo exits 0 and prints the friendly "not initialized" line. The CLI
 // classifies "repository not initialized" as a reportable status rather
 // than an error, so exit 0 is intentional.
-//
-//nolint:paralleltest // Suite runs with -p 1; t.Parallel() is forbidden.
 func TestStatus_Uninitialized(t *testing.T) {
 	resetFixture(t)
 
@@ -30,15 +28,13 @@ func TestStatus_Uninitialized(t *testing.T) {
 	cfg := runConfig{Dir: dir, Stdin: nil, Env: nil}
 
 	result := runConba(t, cfg, "status")
-	requireExit(t, result, "conba status", 0)
+	requireSuccess(t, result, "conba status")
 	requireStdoutContains(t, result, "not initialized (run 'conba init' to create)")
 	requireStdoutContains(t, result, repoPath)
 }
 
 // TestStatus_Initialized asserts that `conba status` reports the ready
 // state against a freshly initialized repo.
-//
-//nolint:paralleltest // Suite runs with -p 1; t.Parallel() is forbidden.
 func TestStatus_Initialized(t *testing.T) {
 	resetFixture(t)
 
@@ -56,10 +52,10 @@ func TestStatus_Initialized(t *testing.T) {
 	cfg := runConfig{Dir: dir, Stdin: nil, Env: nil}
 
 	initResult := runConba(t, cfg, "init")
-	requireExit(t, initResult, "conba init", 0)
+	requireSuccess(t, initResult, "conba init")
 
 	result := runConba(t, cfg, "status")
-	requireExit(t, result, "conba status", 0)
+	requireSuccess(t, result, "conba status")
 	requireStdoutContains(t, result, "Status:     ready")
 	requireStdoutContains(t, result, repoPath)
 }

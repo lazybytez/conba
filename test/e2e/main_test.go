@@ -20,13 +20,9 @@ const envConbaBinary = "CONBA_BINARY"
 // binaryPath is the path to the pre-built conba binary. Populated by
 // TestMain from envConbaBinary before m.Run(); a package-level var is
 // the standard TestMain handoff since TestMain has no *testing.T.
-//
-//nolint:gochecknoglobals // TestMain pattern requires package-level state.
 var binaryPath string
 
 // requiredServices must stay in sync with test/e2e/compose.yaml.
-//
-//nolint:gochecknoglobals // Fixture manifest shared with helpers_test.go.
 var requiredServices = []string{
 	containerMySQL,
 	containerApp,
@@ -55,7 +51,6 @@ func runMain(m *testing.M) int {
 		return 2
 	}
 
-	//nolint:gosec // Path comes from CONBA_BINARY env var set by the Makefile, not user input.
 	_, err := os.Stat(path)
 	if err != nil {
 		fmt.Fprintf(
@@ -101,7 +96,6 @@ func inspectHealth(service string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	//nolint:gosec // Fixed binary ("docker") and controlled arguments under test scope.
 	cmd := exec.CommandContext(
 		ctx,
 		"docker", "inspect",

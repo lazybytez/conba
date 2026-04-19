@@ -2,37 +2,30 @@
 ARG go_version=1.26
 ARG alpine_version=3.23
 ARG restic_version=0.18.1
+ARG docker_cli_version=28.0.4
 
-# Stage 0: Source the pinned restic binary
+# Stage 0a: Source the pinned restic binary
 FROM docker.io/restic/restic:${restic_version} AS restic
+
+# Stage 0b: Source the pinned Docker CLI binary (and the compose plugin)
+FROM docker.io/library/docker:${docker_cli_version}-cli AS docker-cli
 
 # Stage 1: Test image — Debian-based for CGO (required by -race detector)
 # Runs as root: needs Docker socket + /var/lib/docker/volumes access.
 FROM docker.io/library/golang:${go_version} AS test
 
-# Copy restic binary from the pinned restic stage
+# Copy restic + docker CLI + docker compose plugin from the pinned upstreams
 COPY --from=restic --link /usr/bin/restic /usr/bin/restic
+COPY --from=docker-cli --link /usr/local/bin/docker /usr/local/bin/docker
+COPY --from=docker-cli --link /usr/local/libexec/docker/cli-plugins/docker-compose \
+    /usr/local/libexec/docker/cli-plugins/docker-compose
 
-# Install gotestsum (pinned) for JUnit XML output and human-friendly formatting.
-# Install Docker CLI static binary (client only — no daemon).
-# Static binary preferred over apt docker-ce-cli to avoid the full apt repo
-# setup, GPG key fetch, and ~300 MB of additional packages.
-# DOCKER_VERSION must be available at the stable x86_64 index:
-#   https://download.docker.com/linux/static/stable/x86_64/
 ARG gotestsum_version=v1.13.0
-ARG docker_cli_version=28.0.4
 
 RUN go install gotest.tools/gotestsum@${gotestsum_version} && \
-    # Install Docker CLI static binary (client only)
-    cd /tmp && \
-    wget -q "https://download.docker.com/linux/static/stable/x86_64/docker-${docker_cli_version}.tgz" \
-        -O docker.tgz && \
-    tar --strip-components=1 -xzf docker.tgz docker/docker && \
-    mv docker /usr/local/bin/docker && \
-    rm -f docker.tgz && \
-    # Smoke-check the binaries are executable
     gotestsum --version && \
-    docker --version
+    docker --version && \
+    docker compose version
 
 # Stage 2: Build the conba binary
 FROM docker.io/library/golang:${go_version} AS builder
