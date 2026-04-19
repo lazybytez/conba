@@ -9,22 +9,12 @@ import (
 	"testing"
 )
 
-// Tag format under test is produced by backup.BuildTags in
-// internal/backup/tags.go:11-16 and joined comma-separated by appendTags
-// in internal/restic/args.go:59-65. Every snapshot carries exactly:
-//
-//	"container=<container-name>", "volume=<mount-name>", "hostname=<hostname>"
-//
-// Helpers below filter snapshots on the canonical "container=" tag.
-
 const (
 	tagPrefixContainer = "container="
 	tagPrefixVolume    = "volume="
 )
 
-// snapshotsForContainer returns the subset of snaps whose Tags contain the
-// tag "container=<containerName>" produced by backup.BuildTags
-// (internal/backup/tags.go:13).
+// snapshotsForContainer returns snapshots tagged "container=<containerName>".
 func snapshotsForContainer(snaps []ResticSnapshot, containerName string) []ResticSnapshot {
 	want := tagPrefixContainer + containerName
 
@@ -50,13 +40,10 @@ func hasTagWithPrefix(tags []string, prefix string) bool {
 	return false
 }
 
-// TestBackup_FreshRepo_DiscoversAllNonIgnoredTargets runs `conba init` then
-// `conba backup` against a freshly-created repo and asserts:
-//   - mysql and app containers each produce at least one snapshot
-//   - the conba-e2e-ignored container (labelled conba.enabled=false) is
-//     filtered out by internal/filter/filter.go and produces zero
-//   - every snapshot carries both a container= and a volume= tag, matching
-//     the format emitted by internal/backup/tags.go.
+// TestBackup_FreshRepo_DiscoversAllNonIgnoredTargets asserts that a fresh
+// backup produces one snapshot per non-ignored container, zero for the
+// label-disabled one, and that every snapshot carries both container= and
+// volume= tags.
 //
 //nolint:paralleltest // Suite runs with -p 1; t.Parallel() is forbidden.
 func TestBackup_FreshRepo_DiscoversAllNonIgnoredTargets(t *testing.T) {
@@ -121,8 +108,7 @@ func TestBackup_FreshRepo_DiscoversAllNonIgnoredTargets(t *testing.T) {
 	}
 }
 
-// allTags returns a flat slice of every Tags entry across snaps, used only
-// for diagnostic messages on assertion failure.
+// allTags flattens every Tags entry across snaps for diagnostic messages.
 func allTags(snaps []ResticSnapshot) []string {
 	var all []string
 
@@ -133,10 +119,8 @@ func allTags(snaps []ResticSnapshot) []string {
 	return all
 }
 
-// TestBackup_DryRun_NoSnapshots verifies that `conba backup --dry-run` does
-// not write any snapshots to the restic repository. printDryRun in
-// internal/cli/backup.go:108-150 prints the planned targets and returns
-// without invoking restic backup.
+// TestBackup_DryRun_NoSnapshots asserts that `conba backup --dry-run` writes
+// no snapshots to the repository.
 //
 //nolint:paralleltest // Suite runs with -p 1; t.Parallel() is forbidden.
 func TestBackup_DryRun_NoSnapshots(t *testing.T) {
@@ -167,11 +151,9 @@ func TestBackup_DryRun_NoSnapshots(t *testing.T) {
 	}
 }
 
-// TestBackup_RepeatedBackup_ProducesTwoSnapshotsPerTarget runs backup twice
-// in a row and asserts that each non-ignored container has exactly two
-// snapshots tagged with its container= tag. Restic's content-addressed
-// store deduplicates data but still creates a new snapshot metadata entry
-// per invocation, so snapshot count grows monotonically with backup runs.
+// TestBackup_RepeatedBackup_ProducesTwoSnapshotsPerTarget asserts that each
+// non-ignored container has exactly two snapshots after two backup runs.
+// Restic deduplicates data but still records one snapshot per invocation.
 //
 //nolint:paralleltest // Suite runs with -p 1; t.Parallel() is forbidden.
 func TestBackup_RepeatedBackup_ProducesTwoSnapshotsPerTarget(t *testing.T) {
@@ -226,13 +208,8 @@ func TestBackup_RepeatedBackup_ProducesTwoSnapshotsPerTarget(t *testing.T) {
 	}
 }
 
-// TestBackup_DataMutationReflectedInDiff backs up the app volume, mutates
-// the volume content via `docker exec`, backs up again, and asserts that
-// `restic diff round1 round2` mentions the new file with a `+` marker —
-// restic's diff format emits `+    /path/to/file` for added entries.
-//
-// The two snapshot IDs are extracted from resticSnapshots filtered to the
-// app container and sorted by restic's natural JSON ordering (older first).
+// TestBackup_DataMutationReflectedInDiff backs up twice with a file added
+// between runs and asserts `restic diff` flags the new file with a `+` marker.
 //
 //nolint:paralleltest // Suite runs with -p 1; t.Parallel() is forbidden.
 func TestBackup_DataMutationReflectedInDiff(t *testing.T) {
@@ -277,8 +254,8 @@ func TestBackup_DataMutationReflectedInDiff(t *testing.T) {
 	}
 }
 
-// requireSingleAppSnapshotID loads snapshots for the app container and
-// returns the ID of the only entry, failing the test otherwise.
+// requireSingleAppSnapshotID returns the ID of the sole app snapshot,
+// failing the test if zero or more than one is present.
 func requireSingleAppSnapshotID(t *testing.T, repoPath string) string {
 	t.Helper()
 
@@ -295,8 +272,8 @@ func requireSingleAppSnapshotID(t *testing.T, repoPath string) string {
 	return appSnaps[0].ID
 }
 
-// requireNewAppSnapshotID expects exactly two app-container snapshots and
-// returns the ID that differs from excludeID.
+// requireNewAppSnapshotID returns the second app snapshot's ID, requiring
+// exactly two to be present and one of them to match excludeID.
 func requireNewAppSnapshotID(t *testing.T, repoPath, excludeID string) string {
 	t.Helper()
 
@@ -321,10 +298,8 @@ func requireNewAppSnapshotID(t *testing.T, repoPath, excludeID string) string {
 	return ""
 }
 
-// containsAddedLine reports whether diff contains a line that has both a
-// `+` marker and the given filename. restic diff uses lines like
-// "+    /data/added.txt"; we assert the marker and name appear on the
-// same line without pinning the exact column.
+// containsAddedLine reports whether any line in diff contains both a `+`
+// marker and filename. Avoids pinning restic's exact column layout.
 func containsAddedLine(diff, filename string) bool {
 	for line := range strings.SplitSeq(diff, "\n") {
 		if strings.Contains(line, "+") && strings.Contains(line, filename) {

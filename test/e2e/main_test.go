@@ -14,17 +14,14 @@ import (
 	"time"
 )
 
-// binaryPath is the absolute filesystem path to the freshly built conba
-// binary used by every scenario. Populated by TestMain before m.Run().
-// A package-level var is the idiomatic handoff from TestMain to tests —
-// TestMain has no *testing.T to pass state through.
+// binaryPath is the path to the freshly built conba binary. Populated by
+// TestMain before m.Run(); a package-level var is the standard TestMain
+// handoff since TestMain has no *testing.T.
 //
 //nolint:gochecknoglobals // TestMain pattern requires package-level state.
 var binaryPath string
 
-// requiredServices is the set of compose services that must be reporting
-// healthy before the e2e suite can run. Kept in sync with
-// test/e2e/compose.yaml.
+// requiredServices must stay in sync with test/e2e/compose.yaml.
 //
 //nolint:gochecknoglobals // Fixture manifest shared with helpers_test.go.
 var requiredServices = []string{
@@ -33,18 +30,13 @@ var requiredServices = []string{
 	containerIgnored,
 }
 
-// errGoModNotFound is returned when findModuleRoot cannot locate go.mod
-// while walking parent directories from the current working directory.
 var errGoModNotFound = errors.New("go.mod not found")
 
-// errServiceUnhealthy is returned when a compose service is present but
-// its reported docker health status is anything other than "healthy".
 var errServiceUnhealthy = errors.New("compose service is not healthy")
 
 // TestMain builds the conba binary, verifies the compose fixture is healthy,
-// then runs the e2e suite. It exits 2 with a clear error if the fixture is
-// not up — bringing the fixture up is the responsibility of the caller
-// (typically the `make go/test-e2e/up` target).
+// then runs the e2e suite. Exits 2 if the fixture is not up; bringing it up
+// is the caller's responsibility (typically `make go/test-e2e/up`).
 func TestMain(m *testing.M) {
 	os.Exit(runMain(m))
 }
@@ -92,9 +84,8 @@ func runMain(m *testing.M) int {
 	return m.Run()
 }
 
-// findModuleRoot walks parent directories from the current working
-// directory until it finds a go.mod file. The resulting path is used as
-// the -C argument to `go build`.
+// findModuleRoot walks upward from cwd until it finds a go.mod.
+// The result is passed to `go build -C`.
 func findModuleRoot() (string, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -122,8 +113,8 @@ func findModuleRoot() (string, error) {
 	}
 }
 
-// buildBinary compiles ./cmd/conba from moduleRoot into outPath using the
-// Go 1.20+ -C flag to avoid relying on the test binary's working directory.
+// buildBinary compiles ./cmd/conba from moduleRoot into outPath.
+// Uses `go build -C` so the call is independent of cwd.
 func buildBinary(moduleRoot, outPath string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
@@ -146,8 +137,8 @@ func buildBinary(moduleRoot, outPath string) error {
 	return nil
 }
 
-// verifyFixtureHealthy inspects each required container and returns an
-// error describing the first one that is missing or not healthy.
+// verifyFixtureHealthy returns the first service that is missing or
+// whose health status is not "healthy".
 func verifyFixtureHealthy(services []string) error {
 	for _, service := range services {
 		err := inspectHealth(service)

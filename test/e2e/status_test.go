@@ -7,16 +7,10 @@ import (
 	"testing"
 )
 
-// TestStatus_Uninitialized runs `conba status` against an empty repo path
-// that does not contain a restic repository. Current production behaviour
-// (internal/cli/status.go handleStatusError + printNotInitialized): the
-// command exits 0 and writes the friendly "not initialized" line to
-// stdout.
-//
-// Note: the task plan originally specified "exits non-zero". The current
-// CLI wiring treats a classified "repository not initialized" error as a
-// successful, user-friendly status report and returns nil, so exit 0 is
-// the correct assertion against the code as it stands today.
+// TestStatus_Uninitialized asserts that `conba status` against a missing
+// repo exits 0 and prints the friendly "not initialized" line. The CLI
+// classifies "repository not initialized" as a reportable status rather
+// than an error, so exit 0 is intentional.
 //
 //nolint:paralleltest // Suite runs with -p 1; t.Parallel() is forbidden.
 func TestStatus_Uninitialized(t *testing.T) {
@@ -41,9 +35,8 @@ func TestStatus_Uninitialized(t *testing.T) {
 	requireStdoutContains(t, result, repoPath)
 }
 
-// TestStatus_Initialized runs `conba init` then `conba status` against the
-// same repo. The status output must include the "ready" line from
-// printStatus in internal/cli/status.go.
+// TestStatus_Initialized asserts that `conba status` reports the ready
+// state against a freshly initialized repo.
 //
 //nolint:paralleltest // Suite runs with -p 1; t.Parallel() is forbidden.
 func TestStatus_Initialized(t *testing.T) {

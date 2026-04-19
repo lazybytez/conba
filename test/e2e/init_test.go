@@ -10,10 +10,8 @@ import (
 	"testing"
 )
 
-// TestInit_FreshRepo verifies that `conba init` against an empty repo path
-// creates the restic repository on disk and that a follow-up `conba status`
-// reports the ready state. The expected "ready" line text is emitted by
-// printStatus in internal/cli/status.go.
+// TestInit_FreshRepo asserts that `conba init` creates the restic repo on
+// disk and that a follow-up `conba status` reports the ready state.
 //
 //nolint:paralleltest // Suite runs with -p 1; t.Parallel() is forbidden.
 func TestInit_FreshRepo(t *testing.T) {
@@ -48,18 +46,10 @@ func TestInit_FreshRepo(t *testing.T) {
 	requireStdoutContains(t, statusResult, repoPath)
 }
 
-// TestInit_AlreadyInitialized runs `conba init` twice in a row and asserts
-// the second invocation is an idempotent no-op:
-//   - exit code 0 (Client.Init in internal/restic/init.go deliberately
-//     swallows the "already initialized" / "config file already exists"
-//     restic stderr patterns and returns nil).
-//   - the on-disk `config` file is byte-identical before and after the
-//     second run.
-//
-// Note: the task plan originally specified a non-zero exit + stderr match
-// against an "already initialized" message. That contradicts the current
-// Client.Init implementation, which deliberately returns nil for that
-// stderr family to preserve idempotence.
+// TestInit_AlreadyInitialized asserts that a second `conba init` is an
+// idempotent no-op: exit 0 and the on-disk config file is byte-identical
+// before and after. Idempotence is deliberate: the restic client swallows
+// the "already initialized" / "config file already exists" stderr family.
 //
 //nolint:paralleltest // Suite runs with -p 1; t.Parallel() is forbidden.
 func TestInit_AlreadyInitialized(t *testing.T) {

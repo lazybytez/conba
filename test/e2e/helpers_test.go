@@ -20,9 +20,8 @@ import (
 	"github.com/lazybytez/conba/internal/config"
 )
 
-// Fixture constants — kept in one place so scenario tests never hardcode
-// service names or credentials. Must stay in sync with
-// test/e2e/compose.yaml and test/e2e/compose/mysql/*.sql.
+// Fixture constants. Must stay in sync with test/e2e/compose.yaml and
+// test/e2e/compose/mysql/*.sql.
 const (
 	containerMySQL   = "conba-e2e-mysql"
 	containerApp     = "conba-e2e-app"
@@ -49,28 +48,24 @@ var defaultIncludeNamePatterns = []string{"^conba-e2e-"}
 
 // runConfig configures a single invocation of the conba binary.
 type runConfig struct {
-	// Dir becomes cmd.Dir — typically a t.TempDir() containing conba.yaml.
-	Dir string
-	// Stdin is optional; nil means no stdin.
+	// Dir is typically a t.TempDir() containing conba.yaml.
+	Dir   string
 	Stdin io.Reader
 	// Env, when non-nil, replaces the inherited os.Environ() completely.
-	// Leave nil to inherit the current process environment.
 	Env []string
 }
 
-// runResult holds the outcome of a conba invocation.
+// runResult holds the outcome of a conba invocation. Err is non-nil only
+// for process start/wait failures; non-zero exits surface via ExitCode.
 type runResult struct {
 	Stdout   string
 	Stderr   string
 	ExitCode int
-	// Err is non-nil only for process start/wait failures that are NOT a
-	// non-zero exit. Callers inspect ExitCode to branch on tool behaviour.
-	Err error
+	Err      error
 }
 
 // runConba executes the pre-built conba binary with the supplied args.
-// The call is bounded by a 30-second timeout. Non-zero exit codes are
-// reported via ExitCode — they do NOT set Err.
+// Non-zero exit codes are reported via ExitCode and do not set Err.
 func runConba(t *testing.T, cfg runConfig, args ...string) runResult {
 	t.Helper()
 
@@ -118,8 +113,8 @@ func runConba(t *testing.T, cfg runConfig, args ...string) runResult {
 	return result
 }
 
-// configOpts captures the knobs the e2e scenarios need to toggle in the
-// generated conba.yaml. Zero values fall back to sensible defaults.
+// configOpts is the subset of conba.yaml fields scenarios override.
+// Zero values fall back to defaults applied in writeConfig.
 type configOpts struct {
 	ResticRepoPath      string
 	ResticPassword      string
@@ -128,9 +123,8 @@ type configOpts struct {
 	ExcludeNames        []string
 }
 
-// configTemplate is the minimal YAML structure accepted by
-// internal/config.Load(). Field names MUST match the `mapstructure` tags
-// on the Config struct.
+// configTemplate is the minimal YAML accepted by config.Load. Field names
+// must match the `mapstructure` tags on the Config struct.
 const configTemplate = `logging:
   level: info
   format: human
@@ -159,10 +153,8 @@ restic:
   password: {{ printf "%q" .ResticPassword }}
 `
 
-// writeConfig renders a conba.yaml into dir using opts. Defaults are
-// applied for missing fields. The generated YAML is parsed through the
-// real config loader as a sanity check that template output matches the
-// Config struct field set.
+// writeConfig renders a conba.yaml into dir using opts, applies defaults
+// for zero fields, and verifies the result parses via the real loader.
 func writeConfig(t *testing.T, dir string, opts configOpts) {
 	t.Helper()
 
@@ -196,9 +188,8 @@ func writeConfig(t *testing.T, dir string, opts configOpts) {
 	verifyConfigLoads(t, path)
 }
 
-// verifyConfigLoads parses the generated YAML through the real conba
-// config loader as a sanity check that the template output matches the
-// Config struct field set.
+// verifyConfigLoads parses the generated YAML through the real loader
+// to catch template-vs-struct drift.
 func verifyConfigLoads(t *testing.T, path string) {
 	t.Helper()
 
@@ -209,7 +200,7 @@ func verifyConfigLoads(t *testing.T, path string) {
 }
 
 // resetFixture returns all three fixture containers to a known-good
-// state. Safe to call repeatedly — each step is idempotent.
+// state. Idempotent.
 func resetFixture(t *testing.T) {
 	t.Helper()
 
@@ -294,9 +285,8 @@ func dockerExec(t *testing.T, container string, args ...string) {
 	}
 }
 
-// readFile reads the file at path and returns its bytes. The path is
-// expected to live under a t.TempDir() managed by the test, so the
-// `gosec` G304 warning about variable-path reads is benign.
+// readFile reads the file at path and returns its bytes. path is expected
+// to live under t.TempDir(), so the gosec G304 warning is benign.
 func readFile(t *testing.T, path string) []byte {
 	t.Helper()
 
@@ -309,8 +299,7 @@ func readFile(t *testing.T, path string) []byte {
 	return b
 }
 
-// requireStdoutContains fails the test if result.Stdout does not contain
-// want. Keeps scenario bodies tight.
+// requireStdoutContains fails the test if result.Stdout does not contain want.
 func requireStdoutContains(t *testing.T, result runResult, want string) {
 	t.Helper()
 
@@ -319,8 +308,8 @@ func requireStdoutContains(t *testing.T, result runResult, want string) {
 	}
 }
 
-// requireExit fails the test unless result's exit code equals want and no
-// start error is set. Collapses a repeated 8-line assertion block.
+// requireExit fails unless result's exit code equals want and no start
+// error is set.
 //
 //nolint:unparam // non-zero exit cases are expected in later scenarios.
 func requireExit(t *testing.T, result runResult, cmd string, want int) {
@@ -338,8 +327,8 @@ func requireExit(t *testing.T, result runResult, cmd string, want int) {
 	}
 }
 
-// ResticSnapshot mirrors the subset of fields we parse from
-// `restic snapshots --json`. Field names match the restic JSON shape.
+// ResticSnapshot mirrors the subset of `restic snapshots --json` fields
+// consumed by the suite.
 type ResticSnapshot struct {
 	ShortID  string   `json:"short_id"`
 	ID       string   `json:"id"`
@@ -349,10 +338,9 @@ type ResticSnapshot struct {
 	Time     string   `json:"time"`
 }
 
-// resticSnapshots invokes `restic snapshots --json` directly against
-// repoPath. If the restic binary is not on PATH the test is skipped. An
-// uninitialised repository yields a nil slice with no error, letting the
-// caller decide whether that matters.
+// resticSnapshots invokes `restic snapshots --json` against repoPath.
+// Skips the test if restic is not on PATH. An uninitialised repo yields
+// a nil slice with no error so callers can branch on repo existence.
 //
 //nolint:unparam // password is parameterised to mirror resticDiff and future non-default scenarios.
 func resticSnapshots(t *testing.T, repoPath, password string) []ResticSnapshot {
@@ -360,7 +348,7 @@ func resticSnapshots(t *testing.T, repoPath, password string) []ResticSnapshot {
 
 	_, err := exec.LookPath("restic")
 	if err != nil {
-		t.Skipf("restic binary not found in PATH — e2e harness requires it: %v", err)
+		t.Skipf("restic binary not found in PATH, e2e harness requires it: %v", err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), dockerCommandTimeout)
@@ -379,9 +367,8 @@ func resticSnapshots(t *testing.T, repoPath, password string) []ResticSnapshot {
 
 	err = cmd.Run()
 	if err != nil {
-		// Uninitialised repo: restic errors out. Treat as "no snapshots"
-		// so callers can distinguish empty vs uninitialised via repo path
-		// existence if they need to.
+		// Treat an uninitialised repo as "no snapshots"; callers can
+		// distinguish empty from missing via repo path existence.
 		stderrStr := stderr.String()
 		if strings.Contains(stderrStr, "unable to open") ||
 			strings.Contains(stderrStr, "does not exist") ||
@@ -413,15 +400,14 @@ func resticSnapshots(t *testing.T, repoPath, password string) []ResticSnapshot {
 	return snapshots
 }
 
-// resticDiff runs `restic diff a b` and returns the combined stdout +
-// stderr output trimmed of surrounding whitespace. Both snapshots must
-// exist — diff failures fail the test.
+// resticDiff runs `restic diff a b` and returns the combined output
+// trimmed of trailing whitespace. Diff failures fail the test.
 func resticDiff(t *testing.T, repoPath, password, snapA, snapB string) string {
 	t.Helper()
 
 	_, err := exec.LookPath("restic")
 	if err != nil {
-		t.Skipf("restic binary not found in PATH — e2e harness requires it: %v", err)
+		t.Skipf("restic binary not found in PATH, e2e harness requires it: %v", err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), dockerCommandTimeout)
@@ -444,9 +430,9 @@ func resticDiff(t *testing.T, repoPath, password, snapA, snapB string) string {
 	return strings.TrimRight(string(out), " \t\r\n")
 }
 
-// TestHarnessSelfCheck verifies that the e2e harness can invoke the built
-// conba binary and capture its output. This is the bootstrap test: if it
-// fails, the rest of the e2e suite cannot run.
+// TestHarnessSelfCheck asserts the harness can invoke the built conba
+// binary and capture its output. If this fails the rest of the suite
+// cannot run.
 //
 //nolint:paralleltest // Suite runs with -p 1; t.Parallel() is forbidden.
 func TestHarnessSelfCheck(t *testing.T) {

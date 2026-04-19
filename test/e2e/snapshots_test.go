@@ -8,26 +8,15 @@ import (
 	"testing"
 )
 
-// Volume names below match the docker compose project naming. The compose
-// project is named "conba-e2e" (test/e2e/compose.yaml:11), so each named
-// volume is prefixed with the project name on disk and in container
-// inspect output. backup.BuildTags (internal/backup/tags.go:14) tags every
-// snapshot with "volume=" + target.Mount.Name, where Mount.Name is the
-// resolved docker volume name from internal/runtime/docker/docker.go:93,
-// hence the project-prefixed strings here.
+// Docker prefixes named volumes with the compose project ("conba-e2e"),
+// so on-disk and inspect output carry the doubled prefix seen here.
 const (
 	volumeMySQL = "conba-e2e_conba-e2e-mysql-data"
 	volumeApp   = "conba-e2e_conba-e2e-app-data"
 )
 
-// TestSnapshots_FilterByContainer runs `conba init`, `conba backup` and
-// then `conba snapshots --container conba-e2e-app`. The snapshots command
-// passes the flag through to restic as a "container=<name>" tag filter
-// (see runSnapshots / buildFilterTags in internal/cli/snapshots.go:73,151)
-// so only app-tagged snapshots come back. The tabular output emitted by
-// printSnapshots (internal/cli/snapshots.go:110-147) renders the volume
-// column for each snapshot, which we use to assert the app's volume is
-// present and the mysql container/volume names are absent.
+// TestSnapshots_FilterByContainer asserts that `snapshots --container <app>`
+// lists the app volume and omits any mysql container or volume name.
 //
 //nolint:paralleltest // Suite runs with -p 1; t.Parallel() is forbidden.
 func TestSnapshots_FilterByContainer(t *testing.T) {
@@ -55,13 +44,8 @@ func TestSnapshots_FilterByContainer(t *testing.T) {
 	snapsResult := runConba(t, cfg, "snapshots", "--container", containerApp)
 	requireExit(t, snapsResult, "conba snapshots --container conba-e2e-app", 0)
 
-	// printSnapshots renders the app's volume name in the Volume column
-	// (internal/cli/snapshots.go:119-125 via extractTag with tagPrefixVolume).
 	requireStdoutContains(t, snapsResult, volumeApp)
 
-	// The mysql container name appears in the Container column for any
-	// mysql-tagged snapshot (internal/cli/snapshots.go:122) — its absence
-	// proves the --container filter is being honoured.
 	if strings.Contains(snapsResult.Stdout, containerMySQL) {
 		t.Fatalf(
 			"snapshots --container %s stdout unexpectedly mentions %q; stdout=%q",
@@ -69,8 +53,6 @@ func TestSnapshots_FilterByContainer(t *testing.T) {
 		)
 	}
 
-	// Likewise the mysql volume name must not appear; same column source as
-	// volumeApp above (internal/cli/snapshots.go:123).
 	if strings.Contains(snapsResult.Stdout, volumeMySQL) {
 		t.Fatalf(
 			"snapshots --container %s stdout unexpectedly mentions %q; stdout=%q",
@@ -79,13 +61,8 @@ func TestSnapshots_FilterByContainer(t *testing.T) {
 	}
 }
 
-// TestSnapshots_FilterByVolume runs `conba init`, `conba backup` and then
-// `conba snapshots --volume <mysql-volume>`. The --volume flag is
-// converted into a "volume=<name>" tag filter by buildFilterTags
-// (internal/cli/snapshots.go:151-167) and forwarded to restic via
-// snapshotFilters.tags (internal/cli/snapshots.go:35-37). The remaining
-// snapshots all carry the mysql volume tag, which printSnapshots emits in
-// the Volume column (internal/cli/snapshots.go:123).
+// TestSnapshots_FilterByVolume asserts that `snapshots --volume <mysql>`
+// lists only the mysql volume and omits the app volume.
 //
 //nolint:paralleltest // Suite runs with -p 1; t.Parallel() is forbidden.
 func TestSnapshots_FilterByVolume(t *testing.T) {
@@ -113,12 +90,8 @@ func TestSnapshots_FilterByVolume(t *testing.T) {
 	snapsResult := runConba(t, cfg, "snapshots", "--volume", volumeMySQL)
 	requireExit(t, snapsResult, "conba snapshots --volume "+volumeMySQL, 0)
 
-	// printSnapshots renders the mysql volume name in the Volume column
-	// (internal/cli/snapshots.go:123 via extractTag with tagPrefixVolume).
 	requireStdoutContains(t, snapsResult, volumeMySQL)
 
-	// The app volume name must not appear in the filtered listing — same
-	// column source (internal/cli/snapshots.go:123).
 	if strings.Contains(snapsResult.Stdout, volumeApp) {
 		t.Fatalf(
 			"snapshots --volume %s stdout unexpectedly mentions %q; stdout=%q",
