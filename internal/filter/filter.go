@@ -9,12 +9,15 @@ import (
 
 	"github.com/lazybytez/conba/internal/config"
 	"github.com/lazybytez/conba/internal/discovery"
+	"github.com/lazybytez/conba/internal/runtime"
 )
 
 // Container label keys used by the filter engine.
 const (
-	LabelEnabled        = "conba.enabled"
-	LabelExcludeVolumes = "conba.exclude-volumes"
+	LabelEnabled                  = "conba.enabled"
+	LabelExcludeVolumes           = "conba.exclude-volumes"
+	LabelExcludeBindMounts        = "conba.exclude-bind-mounts"
+	LabelExcludeMountDestinations = "conba.exclude-mount-destinations"
 )
 
 // Label values for the enabled label.
@@ -74,6 +77,14 @@ func evaluate(target discovery.Target, cfg config.DiscoveryConfig) (string, bool
 		return "excluded by conba.exclude-volumes label", true
 	}
 
+	if isExcludedByBindMountToggle(target) {
+		return "excluded by conba.exclude-bind-mounts label", true
+	}
+
+	if isExcludedByDestination(target) {
+		return "excluded by conba.exclude-mount-destinations label", true
+	}
+
 	return "", false
 }
 
@@ -112,6 +123,34 @@ func isExcludedByVolumeLabel(target discovery.Target) bool {
 
 	for entry := range strings.SplitSeq(raw, ",") {
 		if strings.TrimSpace(entry) == target.Mount.Name {
+			return true
+		}
+	}
+
+	return false
+}
+
+func isExcludedByBindMountToggle(target discovery.Target) bool {
+	if target.Mount.Type != runtime.MountTypeBind {
+		return false
+	}
+
+	return target.Container.Labels[LabelExcludeBindMounts] == LabelValueTrue
+}
+
+func isExcludedByDestination(target discovery.Target) bool {
+	raw, ok := target.Container.Labels[LabelExcludeMountDestinations]
+	if !ok {
+		return false
+	}
+
+	for entry := range strings.SplitSeq(raw, ",") {
+		trimmed := strings.TrimSpace(entry)
+		if trimmed == "" {
+			continue
+		}
+
+		if trimmed == target.Mount.Destination {
 			return true
 		}
 	}

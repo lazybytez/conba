@@ -1,8 +1,9 @@
 # E2E test fixture for conba.
-# Defines three services on the conba-e2e network:
-#   - conba-e2e-mysql: MySQL 8.0 with a pre-seeded widgets table
-#   - conba-e2e-app:   Alpine container with a small /data tree (backed up by conba)
-#   - conba-e2e-ignored: Alpine container labelled conba.enabled=false (excluded from backup)
+# Defines four services on the conba-e2e network:
+#   - conba-e2e-mysql:         MySQL 8.0 with a bind-mounted init.sql and a named data volume
+#   - conba-e2e-app:           Alpine container with a small /data tree (backed up by conba)
+#   - conba-e2e-ignored:       Alpine container labelled conba.enabled=false (excluded from backup)
+#   - conba-e2e-bind-excluded: Alpine container with conba.exclude-mount-destinations label
 #
 # Usage:
 #   docker compose -f test/e2e/compose.yaml up -d --wait --wait-timeout 60
@@ -12,16 +13,14 @@ name: conba-e2e
 
 services:
     conba-e2e-mysql:
-        build:
-            context: ./compose/mysql
-            dockerfile: Containerfile
-        image: conba-e2e-mysql:8.0.45
+        image: docker.io/library/mysql:8.0.45
         container_name: conba-e2e-mysql
         environment:
             MYSQL_ROOT_PASSWORD: conba-e2e
             MYSQL_DATABASE: conba_e2e
         volumes:
             - conba-e2e-mysql-data:/var/lib/mysql
+            - ./compose/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
         healthcheck:
             test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-pconba-e2e"]
             interval: 5s
@@ -93,10 +92,38 @@ services:
         tmpfs:
             - /tmp:noexec
 
+    conba-e2e-bind-excluded:
+        image: docker.io/library/alpine:3.20.10
+        container_name: conba-e2e-bind-excluded
+        volumes:
+            - conba-e2e-bind-excluded-data:/data
+            - ./compose/mysql/init.sql:/etc/conba-bind-excluded/init.sql:ro
+        command: >
+            sh -c '[ -f /data/marker ] || touch /data/marker
+            && exec tail -f /dev/null'
+        labels:
+            conba.exclude-mount-destinations: "/etc/conba-bind-excluded/init.sql"
+        healthcheck:
+            test: ["CMD", "test", "-f", "/data/marker"]
+            interval: 5s
+            timeout: 5s
+            retries: 6
+            start_period: 5s
+        networks:
+            - conba-e2e
+        cap_drop:
+            - ALL
+        security_opt:
+            - no-new-privileges:true
+        read_only: true
+        tmpfs:
+            - /tmp:noexec
+
 volumes:
     conba-e2e-mysql-data:
     conba-e2e-app-data:
     conba-e2e-ignored-data:
+    conba-e2e-bind-excluded-data:
 
 networks:
     conba-e2e:

@@ -27,6 +27,7 @@ var requiredServices = []string{
 	containerMySQL,
 	containerApp,
 	containerIgnored,
+	containerBindExcluded,
 }
 
 var errServiceUnhealthy = errors.New("compose service is not healthy")

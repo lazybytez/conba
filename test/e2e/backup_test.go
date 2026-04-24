@@ -71,29 +71,45 @@ func TestBackup_FreshRepo_DiscoversAllNonIgnoredTargets(t *testing.T) {
 		t.Fatalf("expected at least one snapshot after backup; got none")
 	}
 
-	mysqlSnaps := snapshotsForContainer(snaps, containerMySQL)
-	if len(mysqlSnaps) == 0 {
+	requireAtLeastOneSnapshot(t, snaps, containerMySQL)
+	requireAtLeastOneSnapshot(t, snaps, containerApp)
+	requireAtLeastOneSnapshot(t, snaps, containerBindExcluded)
+	requireNoSnapshots(t, snaps, containerIgnored)
+	requireAllSnapshotsTagged(t, snaps)
+}
+
+// requireAtLeastOneSnapshot fails the test if no snapshot in snaps is tagged
+// container=name.
+func requireAtLeastOneSnapshot(t *testing.T, snaps []ResticSnapshot, name string) {
+	t.Helper()
+
+	matched := snapshotsForContainer(snaps, name)
+	if len(matched) == 0 {
 		t.Fatalf(
 			"expected at least one snapshot tagged container=%s; tags=%v",
-			containerMySQL, allTags(snaps),
+			name, allTags(snaps),
 		)
 	}
+}
 
-	appSnaps := snapshotsForContainer(snaps, containerApp)
-	if len(appSnaps) == 0 {
-		t.Fatalf(
-			"expected at least one snapshot tagged container=%s; tags=%v",
-			containerApp, allTags(snaps),
-		)
-	}
+// requireNoSnapshots fails the test if any snapshot in snaps is tagged
+// container=name.
+func requireNoSnapshots(t *testing.T, snaps []ResticSnapshot, name string) {
+	t.Helper()
 
-	ignoredSnaps := snapshotsForContainer(snaps, containerIgnored)
-	if len(ignoredSnaps) != 0 {
+	matched := snapshotsForContainer(snaps, name)
+	if len(matched) != 0 {
 		t.Fatalf(
-			"expected zero snapshots tagged container=%s (filtered by conba.enabled=false); got %d",
-			containerIgnored, len(ignoredSnaps),
+			"expected zero snapshots tagged container=%s; got %d",
+			name, len(matched),
 		)
 	}
+}
+
+// requireAllSnapshotsTagged fails the test if any snapshot is missing a
+// container= or volume= tag.
+func requireAllSnapshotsTagged(t *testing.T, snaps []ResticSnapshot) {
+	t.Helper()
 
 	for _, snap := range snaps {
 		if !hasTagWithPrefix(snap.Tags, tagPrefixContainer) {
@@ -178,9 +194,10 @@ func TestBackup_RepeatedBackup_ProducesTwoSnapshotsPerTarget(t *testing.T) {
 	snaps := resticSnapshots(t, repoPath)
 
 	mysqlSnaps := snapshotsForContainer(snaps, containerMySQL)
-	if len(mysqlSnaps) != 2 {
+	if len(mysqlSnaps) != 4 {
 		t.Fatalf(
-			"expected 2 snapshots tagged container=%s after two backups; got %d (tags=%v)",
+			"expected 4 snapshots tagged container=%s after two backups "+
+				"(2 mounts × 2 runs); got %d (tags=%v)",
 			containerMySQL, len(mysqlSnaps), allTags(snaps),
 		)
 	}
@@ -190,6 +207,15 @@ func TestBackup_RepeatedBackup_ProducesTwoSnapshotsPerTarget(t *testing.T) {
 		t.Fatalf(
 			"expected 2 snapshots tagged container=%s after two backups; got %d (tags=%v)",
 			containerApp, len(appSnaps), allTags(snaps),
+		)
+	}
+
+	bindExcludedSnaps := snapshotsForContainer(snaps, containerBindExcluded)
+	if len(bindExcludedSnaps) != 2 {
+		t.Fatalf(
+			"expected 2 snapshots tagged container=%s after two backups "+
+				"(1 named volume × 2 runs; bind is label-excluded); got %d (tags=%v)",
+			containerBindExcluded, len(bindExcludedSnaps), allTags(snaps),
 		)
 	}
 
@@ -295,6 +321,151 @@ func requireNewAppSnapshotID(t *testing.T, repoPath, excludeID string) string {
 func containsAddedLine(diff, filename string) bool {
 	for line := range strings.SplitSeq(diff, "\n") {
 		if strings.Contains(line, "+") && strings.Contains(line, filename) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// TestBackup_BindMount_BackedUpByDefault asserts that, with no exclusion
+// label set, a bind-mounted file on a container is backed up alongside its
+// named volume. The mysql fixture has both: a named data volume and a bind
+// mount of init.sql.
+func TestBackup_BindMount_BackedUpByDefault(t *testing.T) {
+	resetFixture(t)
+
+	dir := t.TempDir()
+	repoPath := filepath.Join(dir, "repo")
+
+	writeConfig(t, dir, configOpts{
+		ResticRepoPath:      repoPath,
+		ResticPassword:      "",
+		IncludeNames:        nil,
+		IncludeNamePatterns: []string{"^conba-e2e-mysql$"},
+		ExcludeNames:        nil,
+	})
+
+	cfg := runConfig{Dir: dir, Stdin: nil, Env: nil}
+
+	initResult := runConba(t, cfg, "init")
+	requireSuccess(t, initResult, "conba init")
+
+	backupResult := runConba(t, cfg, "backup")
+	requireSuccess(t, backupResult, "conba backup")
+
+	snaps := resticSnapshots(t, repoPath)
+
+	mysqlSnaps := snapshotsForContainer(snaps, containerMySQL)
+	if len(mysqlSnaps) != 2 {
+		t.Fatalf(
+			"expected 2 snapshots for %s (1 named volume + 1 bind mount); got %d (tags=%v)",
+			containerMySQL, len(mysqlSnaps), allTags(snaps),
+		)
+	}
+
+	volumeTags := volumeTagsOf(mysqlSnaps)
+	if len(volumeTags) != 2 {
+		t.Fatalf(
+			"expected 2 distinct volume= tags across mysql snapshots; got %d (tags=%v)",
+			len(volumeTags), volumeTags,
+		)
+	}
+
+	if volumeTags[0] == volumeTags[1] {
+		t.Fatalf(
+			"expected the two mysql snapshots to have different volume= tags; both were %q",
+			volumeTags[0],
+		)
+	}
+
+	if !anyContains(volumeTags, "init.sql") {
+		t.Fatalf(
+			"expected at least one mysql snapshot's volume= tag to reference init.sql (the bind mount); volumeTags=%v",
+			volumeTags,
+		)
+	}
+}
+
+// TestBackup_BindMount_ExcludedByDestinationLabel asserts that when a
+// container carries the conba.exclude-mount-destinations label, the matching
+// bind mount is excluded from backup while its named volume continues to be
+// backed up.
+func TestBackup_BindMount_ExcludedByDestinationLabel(t *testing.T) {
+	resetFixture(t)
+
+	dir := t.TempDir()
+	repoPath := filepath.Join(dir, "repo")
+
+	writeConfig(t, dir, configOpts{
+		ResticRepoPath:      repoPath,
+		ResticPassword:      "",
+		IncludeNames:        nil,
+		IncludeNamePatterns: []string{"^conba-e2e-bind-excluded$"},
+		ExcludeNames:        nil,
+	})
+
+	cfg := runConfig{Dir: dir, Stdin: nil, Env: nil}
+
+	initResult := runConba(t, cfg, "init")
+	requireSuccess(t, initResult, "conba init")
+
+	backupResult := runConba(t, cfg, "backup")
+	requireSuccess(t, backupResult, "conba backup")
+
+	snaps := resticSnapshots(t, repoPath)
+
+	bindExcludedSnaps := snapshotsForContainer(snaps, containerBindExcluded)
+	if len(bindExcludedSnaps) != 1 {
+		t.Fatalf(
+			"expected exactly 1 snapshot for %s (named volume only; "+
+				"bind is label-excluded); got %d (tags=%v)",
+			containerBindExcluded, len(bindExcludedSnaps), allTags(snaps),
+		)
+	}
+
+	volumeTags := volumeTagsOf(bindExcludedSnaps)
+	if len(volumeTags) != 1 {
+		t.Fatalf(
+			"expected exactly 1 volume= tag on the bind-excluded snapshot; got %d (tags=%v)",
+			len(volumeTags), volumeTags,
+		)
+	}
+
+	if strings.Contains(volumeTags[0], "init.sql") {
+		t.Fatalf(
+			"expected the bind-excluded container's surviving snapshot to "+
+				"NOT reference init.sql (bind should be excluded); volumeTag=%q",
+			volumeTags[0],
+		)
+	}
+}
+
+// volumeTagsOf returns the value of the volume= tag on each snapshot, in
+// snapshot order. Snapshots without a volume= tag are skipped.
+func volumeTagsOf(snaps []ResticSnapshot) []string {
+	var tags []string
+
+	for _, snap := range snaps {
+		for _, tag := range snap.Tags {
+			value, ok := strings.CutPrefix(tag, tagPrefixVolume)
+			if !ok {
+				continue
+			}
+
+			tags = append(tags, value)
+
+			break
+		}
+	}
+
+	return tags
+}
+
+// anyContains reports whether any element of values contains substr.
+func anyContains(values []string, substr string) bool {
+	for _, v := range values {
+		if strings.Contains(v, substr) {
 			return true
 		}
 	}

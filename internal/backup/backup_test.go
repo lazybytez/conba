@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/lazybytez/conba/internal/backup"
 	"github.com/lazybytez/conba/internal/discovery"
+	"github.com/lazybytez/conba/internal/restic"
 	"github.com/lazybytez/conba/internal/runtime"
 )
 
@@ -76,8 +78,8 @@ func TestRun_AllSucceed(t *testing.T) {
 		t.Errorf("want 2 'Backed up' lines, got output:\n%s", output)
 	}
 
-	if !strings.Contains(output, "2 succeeded, 0 failed") {
-		t.Errorf("want summary '2 succeeded, 0 failed', got output:\n%s", output)
+	if !strings.Contains(output, "2 succeeded, 0 skipped, 0 failed") {
+		t.Errorf("want summary '2 succeeded, 0 skipped, 0 failed', got output:\n%s", output)
 	}
 }
 
@@ -108,8 +110,8 @@ func TestRun_AllFail(t *testing.T) {
 		t.Errorf("want 2 'Failed' lines, got output:\n%s", output)
 	}
 
-	if !strings.Contains(output, "0 succeeded, 2 failed") {
-		t.Errorf("want summary '0 succeeded, 2 failed', got output:\n%s", output)
+	if !strings.Contains(output, "0 succeeded, 0 skipped, 2 failed") {
+		t.Errorf("want summary '0 succeeded, 0 skipped, 2 failed', got output:\n%s", output)
 	}
 }
 
@@ -140,8 +142,8 @@ func TestRun_PartialFailure(t *testing.T) {
 		t.Errorf("want 'Failed db/pgdata' line, got output:\n%s", output)
 	}
 
-	if !strings.Contains(output, "1 succeeded, 1 failed") {
-		t.Errorf("want summary '1 succeeded, 1 failed', got output:\n%s", output)
+	if !strings.Contains(output, "1 succeeded, 0 skipped, 1 failed") {
+		t.Errorf("want summary '1 succeeded, 0 skipped, 1 failed', got output:\n%s", output)
 	}
 }
 
@@ -247,7 +249,138 @@ func TestRun_EmptySourceSkipped(t *testing.T) {
 		t.Errorf("want skip message, got output:\n%s", output)
 	}
 
-	if !strings.Contains(output, "0 succeeded, 1 failed") {
-		t.Errorf("want summary with 1 failed, got output:\n%s", output)
+	if !strings.Contains(output, "0 succeeded, 0 skipped, 1 failed") {
+		t.Errorf("want summary '0 succeeded, 0 skipped, 1 failed', got output:\n%s", output)
+	}
+}
+
+func TestRun_SourceUnreadableIsSkipped(t *testing.T) {
+	t.Parallel()
+
+	targets := []discovery.Target{
+		makeTarget("app", "/src/app-data", "data"),
+	}
+
+	wrapped := fmt.Errorf("wrapped: %w", restic.ErrSourceUnreadable)
+	fn, _ := stubBackupFn(wrapped)
+
+	var buf bytes.Buffer
+
+	err := backup.Run(context.Background(), targets, fn, "host1", &buf)
+	if err != nil {
+		t.Fatalf("want nil error for skipped target, got %v", err)
+	}
+
+	output := buf.String()
+
+	if !strings.Contains(output, "WARN: skipping") {
+		t.Errorf("want 'WARN: skipping' in output, got:\n%s", output)
+	}
+
+	if !strings.Contains(output, "0 succeeded, 1 skipped, 0 failed") {
+		t.Errorf("want summary '0 succeeded, 1 skipped, 0 failed', got:\n%s", output)
+	}
+}
+
+func TestRun_MixedSkipAndFail(t *testing.T) {
+	t.Parallel()
+
+	targets := []discovery.Target{
+		makeTarget("ok", "/src/ok-data", "okvol"),
+		makeTarget("skip", "/src/skip-data", "skipvol"),
+		makeTarget("fail", "/src/fail-data", "failvol"),
+	}
+
+	wrapped := fmt.Errorf("wrapped: %w", restic.ErrSourceUnreadable)
+	fn, _ := stubBackupFn(nil, wrapped, errBackup)
+
+	var buf bytes.Buffer
+
+	err := backup.Run(context.Background(), targets, fn, "host1", &buf)
+	if err == nil {
+		t.Fatal("want error because failed > 0, got nil")
+	}
+
+	if !errors.Is(err, backup.ErrTargetsFailed) {
+		t.Errorf("want error wrapping ErrTargetsFailed, got %v", err)
+	}
+
+	output := buf.String()
+
+	if !strings.Contains(output, "WARN: skipping") {
+		t.Errorf("want 'WARN: skipping' in output, got:\n%s", output)
+	}
+
+	if !strings.Contains(output, "Failed") {
+		t.Errorf("want 'Failed' in output, got:\n%s", output)
+	}
+
+	if !strings.Contains(output, "1 succeeded, 1 skipped, 1 failed") {
+		t.Errorf("want summary '1 succeeded, 1 skipped, 1 failed', got:\n%s", output)
+	}
+}
+
+func TestRun_AllSkipped(t *testing.T) {
+	t.Parallel()
+
+	targets := []discovery.Target{
+		makeTarget("a", "/src/a-data", "avol"),
+		makeTarget("b", "/src/b-data", "bvol"),
+	}
+
+	wrappedA := fmt.Errorf("wrapped: %w", restic.ErrSourceUnreadable)
+	wrappedB := fmt.Errorf("wrapped: %w", restic.ErrSourceUnreadable)
+	fn, _ := stubBackupFn(wrappedA, wrappedB)
+
+	var buf bytes.Buffer
+
+	err := backup.Run(context.Background(), targets, fn, "host1", &buf)
+	if err != nil {
+		t.Fatalf("want nil error when all targets are skipped, got %v", err)
+	}
+
+	output := buf.String()
+
+	if !strings.Contains(output, "0 succeeded, 2 skipped, 0 failed") {
+		t.Errorf("want summary '0 succeeded, 2 skipped, 0 failed', got:\n%s", output)
+	}
+}
+
+func TestRun_SkipMessageFormat(t *testing.T) {
+	t.Parallel()
+
+	targets := []discovery.Target{
+		makeTarget("mycontainer", "/src/some-data", "myvol"),
+	}
+
+	wrapped := fmt.Errorf("wrapped: %w", restic.ErrSourceUnreadable)
+	fn, _ := stubBackupFn(wrapped)
+
+	var buf bytes.Buffer
+
+	err := backup.Run(context.Background(), targets, fn, "host1", &buf)
+	if err != nil {
+		t.Fatalf("want nil error, got %v", err)
+	}
+
+	output := buf.String()
+
+	var skipLine string
+
+	for line := range strings.SplitSeq(output, "\n") {
+		if strings.HasPrefix(line, "WARN: skipping ") {
+			skipLine = line
+
+			break
+		}
+	}
+
+	if skipLine == "" {
+		t.Fatalf("want a line beginning with 'WARN: skipping ', got:\n%s", output)
+	}
+
+	// makeTarget sets Mount.Destination = "/" + mountName.
+	if !strings.Contains(skipLine, "/myvol") {
+		t.Errorf("want skip line to contain mount destination '/myvol', got %q", skipLine)
 	}
 }

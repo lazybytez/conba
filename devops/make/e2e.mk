@@ -9,13 +9,13 @@ E2E_RUN := $(DOCKER_EXECUTABLE) run --rm \
 	-v /var/run/docker.sock:/var/run/docker.sock \
 	-v /var/lib/docker/volumes:/var/lib/docker/volumes \
 	-v $(CURDIR):/app -w /app \
+	-v $(CURDIR):$(CURDIR):ro \
 	-e CONBA_BINARY=/app/bin/conba
 
 E2E_JUNIT := test/e2e/junit.xml
 
 # Bring up the e2e compose fixture and wait for all services to be healthy.
-# --build rebuilds any service with a build: context (currently the custom
-# mysql image that bakes in init.sql) when its Containerfile changes.
+# --build is a no-op when no service has a build: context (kept for safety).
 go/test-e2e/up:
 	$(E2E_COMPOSE) up -d --build --wait --wait-timeout 120
 

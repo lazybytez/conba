@@ -23,9 +23,10 @@ import (
 // Fixture constants. Must stay in sync with test/e2e/compose.yaml and
 // test/e2e/compose/mysql/*.sql.
 const (
-	containerMySQL   = "conba-e2e-mysql"
-	containerApp     = "conba-e2e-app"
-	containerIgnored = "conba-e2e-ignored"
+	containerMySQL        = "conba-e2e-mysql"
+	containerApp          = "conba-e2e-app"
+	containerIgnored      = "conba-e2e-ignored"
+	containerBindExcluded = "conba-e2e-bind-excluded"
 
 	mysqlRootUser     = "root"
 	mysqlRootPassword = "conba-e2e"
@@ -203,7 +204,7 @@ func verifyConfigLoads(t *testing.T, path string) {
 	}
 }
 
-// resetFixture returns all three fixture containers to a known-good
+// resetFixture returns all four fixture containers to a known-good
 // state. Idempotent.
 func resetFixture(t *testing.T) {
 	t.Helper()
@@ -211,6 +212,7 @@ func resetFixture(t *testing.T) {
 	resetMySQL(t)
 	resetApp(t)
 	resetIgnored(t)
+	resetBindExcluded(t)
 }
 
 func resetMySQL(t *testing.T) {
@@ -246,6 +248,15 @@ func resetIgnored(t *testing.T) {
 	composeExec(t, containerIgnored, nil,
 		"sh", "-c",
 		"rm -rf /data/* && echo ignored > /data/should-not-be-backed-up.txt",
+	)
+}
+
+func resetBindExcluded(t *testing.T) {
+	t.Helper()
+
+	composeExec(t, containerBindExcluded, nil,
+		"sh", "-c",
+		"rm -rf /data/* && touch /data/marker",
 	)
 }
 

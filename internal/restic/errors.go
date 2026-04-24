@@ -10,6 +10,9 @@ import (
 var (
 	ErrRepoNotInitialized = errors.New("repository not initialized")
 	ErrRepoLocked         = errors.New("repository is locked")
+	// ErrSourceUnreadable indicates a backup source path could not be read (does not exist,
+	// permission denied) and the target should be skipped rather than counted as a failure.
+	ErrSourceUnreadable = errors.New("backup source unreadable")
 )
 
 // Known restic stderr patterns used to classify errors.
