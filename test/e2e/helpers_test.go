@@ -204,15 +204,17 @@ func verifyConfigLoads(t *testing.T, path string) {
 	}
 }
 
-// resetFixture returns all four fixture containers to a known-good
-// state. Idempotent.
+// resetFixture returns the mutable fixture containers to a known-good
+// state. The bind-excluded container has no mutable state under test
+// (its /data/marker is created by the container command on startup,
+// and its bind file is read-only host-side), so it is not reset here.
+// Idempotent.
 func resetFixture(t *testing.T) {
 	t.Helper()
 
 	resetMySQL(t)
 	resetApp(t)
 	resetIgnored(t)
-	resetBindExcluded(t)
 }
 
 func resetMySQL(t *testing.T) {
@@ -248,15 +250,6 @@ func resetIgnored(t *testing.T) {
 	composeExec(t, containerIgnored, nil,
 		"sh", "-c",
 		"rm -rf /data/* && echo ignored > /data/should-not-be-backed-up.txt",
-	)
-}
-
-func resetBindExcluded(t *testing.T) {
-	t.Helper()
-
-	composeExec(t, containerBindExcluded, nil,
-		"sh", "-c",
-		"rm -rf /data/* && touch /data/marker",
 	)
 }
 
