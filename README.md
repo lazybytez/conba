@@ -107,6 +107,33 @@ the actual volume contents so they can be read for snapshotting;
 mounted to `/app/conba.yaml`, the default lookup path inside the image's
 working directory.
 
+### Backing up bind mounts
+
+Two things to know about bind mounts:
+
+1. **Container labels match the destination path.** Use the
+   container-side destination in `conba.exclude-mount-destinations`
+   (and other label values), not the host source. Destinations are
+   portable across hosts; sources are not.
+2. **Conba opens the source path.** When conba runs in a container,
+   the host source of every bind mount you want backed up must be
+   visible inside conba's container — mount it at the same path.
+
+Example: a service with `-v /srv/myapp/data:/var/lib/myapp/data` is
+only backed up when conba's container also has `/srv/myapp/data`
+mounted at `/srv/myapp/data`:
+
+```sh
+docker run --rm -it \
+  ...existing mounts... \
+  -v /srv/myapp/data:/srv/myapp/data:ro \
+  ghcr.io/lazybytez/conba:edge backup
+```
+
+If the source isn't reachable, conba pre-flights, logs
+`WARN: skipping <container>/<destination>: source unreadable (...)`,
+and continues with the remaining targets.
+
 ## Container Labels
 
 Configure per-container behavior with Docker labels:
