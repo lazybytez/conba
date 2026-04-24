@@ -8,10 +8,17 @@ import (
 
 // Sentinel errors for classifiable restic failure conditions.
 var (
+	// ErrRepoNotInitialized indicates the configured restic repository
+	// does not exist (or has not been initialised yet) at its location.
 	ErrRepoNotInitialized = errors.New("repository not initialized")
-	ErrRepoLocked         = errors.New("repository is locked")
-	// ErrSourceUnreadable indicates a backup source path could not be read (does not exist,
-	// permission denied) and the target should be skipped rather than counted as a failure.
+
+	// ErrRepoLocked indicates restic refused to run because another
+	// process holds the repository lock.
+	ErrRepoLocked = errors.New("repository is locked")
+
+	// ErrSourceUnreadable indicates a backup source path could not be read
+	// (does not exist, permission denied) and the target should be skipped
+	// rather than counted as a failure.
 	ErrSourceUnreadable = errors.New("backup source unreadable")
 )
 
