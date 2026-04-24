@@ -205,10 +205,7 @@ func verifyConfigLoads(t *testing.T, path string) {
 }
 
 // resetFixture returns the mutable fixture containers to a known-good
-// state. The bind-excluded container has no mutable state under test
-// (its /data/marker is created by the container command on startup,
-// and its bind file is read-only host-side), so it is not reset here.
-// Idempotent.
+// state. Idempotent.
 func resetFixture(t *testing.T) {
 	t.Helper()
 
