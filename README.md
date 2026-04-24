@@ -107,6 +107,33 @@ the actual volume contents so they can be read for snapshotting;
 mounted to `/app/conba.yaml`, the default lookup path inside the image's
 working directory.
 
+### Backing up bind mounts
+
+Two things to know about bind mounts:
+
+1. **Container labels match the destination path.** Use the
+   container-side destination in `conba.exclude-mount-destinations`
+   (and other label values), not the host source. Destinations are
+   portable across hosts; sources are not.
+2. **Conba opens the source path.** When conba runs in a container,
+   the host source of every bind mount you want backed up must be
+   visible inside conba's container — mount it at the same path.
+
+Example: a service with `-v /srv/myapp/data:/var/lib/myapp/data` is
+only backed up when conba's container also has `/srv/myapp/data`
+mounted at `/srv/myapp/data`:
+
+```sh
+docker run --rm -it \
+  ...existing mounts... \
+  -v /srv/myapp/data:/srv/myapp/data:ro \
+  ghcr.io/lazybytez/conba:edge backup
+```
+
+If the source isn't reachable, conba pre-flights, logs
+`WARN: skipping <container>/<destination>: source unreadable (...)`,
+and continues with the remaining targets.
+
 ## Container Labels
 
 Configure per-container behavior with Docker labels:
@@ -120,7 +147,9 @@ Configure per-container behavior with Docker labels:
 | `conba.stream-command` | shell command | — | Stream command (stream strategy) |
 | `conba.stdin-filename` | filename | `stdin` | Filename for `--stdin-filename` |
 | `conba.retention` | `Nd,Nw,Nm,Ny` | global | Per-container retention override |
-| `conba.exclude-volumes` | comma-separated | — | Volume names to skip |
+| `conba.exclude-volumes` | comma-separated | — | Comma-separated list matched against `Mount.Name`. For named volumes that's the volume name; for bind mounts it's the host source path (which is rarely portable across hosts — prefer `conba.exclude-mount-destinations` for bind mounts). |
+| `conba.exclude-bind-mounts` | `true`, `false` | `false` | Set to `true` on a container to exclude all of its bind-mounted paths from backup. Named volumes on the same container are not affected. Default: false (bind mounts are eligible). |
+| `conba.exclude-mount-destinations` | comma-separated | — | Comma-separated list of container-side destination paths. Any mount (bind or named volume) whose destination matches an entry exactly is excluded from backup. Example: `conba.exclude-mount-destinations: "/var/log,/etc/myapp/cache"`. |
 
 ## CLI Commands
 

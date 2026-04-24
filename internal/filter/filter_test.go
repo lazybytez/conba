@@ -496,3 +496,252 @@ func TestApply_ExcludeByIDPattern(t *testing.T) {
 		t.Fatalf("want 1 excluded, got %d", len(result.Excluded))
 	}
 }
+
+type mountSpec struct {
+	mountType string
+	name      string
+	dest      string
+}
+
+func makeTargetsWithLabels(
+	containerName string,
+	labels map[string]string,
+	mounts []mountSpec,
+) []discovery.Target {
+	targets := make([]discovery.Target, 0, len(mounts))
+
+	for _, mount := range mounts {
+		targets = append(targets, discovery.Target{
+			Container: runtime.ContainerInfo{
+				ID:     "c1",
+				Name:   containerName,
+				Labels: labels,
+				Mounts: nil,
+			},
+			Mount: runtime.MountInfo{
+				Type:        mount.mountType,
+				Name:        mount.name,
+				Source:      "",
+				Destination: mount.dest,
+				ReadOnly:    false,
+			},
+		})
+	}
+
+	return targets
+}
+
+func assertExpectation(
+	t *testing.T,
+	result filter.Result,
+	mountDest string,
+	excluded bool,
+	wantReason string,
+) {
+	t.Helper()
+
+	if excluded {
+		for _, exclusion := range result.Excluded {
+			if exclusion.Target.Mount.Destination != mountDest {
+				continue
+			}
+
+			if exclusion.Reason != wantReason {
+				t.Errorf(
+					"mount %q: want reason %q, got %q",
+					mountDest, wantReason, exclusion.Reason,
+				)
+			}
+
+			return
+		}
+
+		t.Errorf("mount %q: expected to be excluded but was not", mountDest)
+
+		return
+	}
+
+	for _, included := range result.Included {
+		if included.Mount.Destination == mountDest {
+			return
+		}
+	}
+
+	t.Errorf("mount %q: expected to be included but was not", mountDest)
+}
+
+type expectation struct {
+	mountDest string
+	excluded  bool
+	reason    string
+}
+
+type bindExclusionCase struct {
+	name      string
+	container string
+	labels    map[string]string
+	mounts    []mountSpec
+	expect    []expectation
+}
+
+const (
+	reasonBindToggle = "excluded by conba.exclude-bind-mounts label"
+	reasonDestLabel  = "excluded by conba.exclude-mount-destinations label"
+)
+
+func runBindExclusionCases(t *testing.T, cases []bindExclusionCase) {
+	t.Helper()
+
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			targets := makeTargetsWithLabels(testCase.container, testCase.labels, testCase.mounts)
+			result := filter.Apply(targets, emptyConfig())
+
+			for _, want := range testCase.expect {
+				assertExpectation(t, result, want.mountDest, want.excluded, want.reason)
+			}
+		})
+	}
+}
+
+func TestApply_ExcludeBindMountsToggle(t *testing.T) {
+	t.Parallel()
+
+	cases := []bindExclusionCase{
+		{
+			name:      "bind mount with exclude-bind-mounts=true is excluded",
+			container: "app",
+			labels:    map[string]string{filter.LabelExcludeBindMounts: filter.LabelValueTrue},
+			mounts:    []mountSpec{{runtime.MountTypeBind, "/host/path/init.sql", "/init.sql"}},
+			expect: []expectation{
+				{mountDest: "/init.sql", excluded: true, reason: reasonBindToggle},
+			},
+		},
+		{
+			name:      "named volume with exclude-bind-mounts=true is included",
+			container: "app",
+			labels:    map[string]string{filter.LabelExcludeBindMounts: filter.LabelValueTrue},
+			mounts:    []mountSpec{{runtime.MountTypeVolume, "data", "/data"}},
+			expect: []expectation{
+				{mountDest: "/data", excluded: false, reason: ""},
+			},
+		},
+		{
+			name:      "bind mount with exclude-bind-mounts=false is included",
+			container: "app",
+			labels:    map[string]string{filter.LabelExcludeBindMounts: filter.LabelValueFalse},
+			mounts:    []mountSpec{{runtime.MountTypeBind, "/host/path/init.sql", "/init.sql"}},
+			expect: []expectation{
+				{mountDest: "/init.sql", excluded: false, reason: ""},
+			},
+		},
+		{
+			name:      "bind mount with exclude-bind-mounts label absent is included",
+			container: "app",
+			labels:    map[string]string{},
+			mounts:    []mountSpec{{runtime.MountTypeBind, "/host/path/init.sql", "/init.sql"}},
+			expect: []expectation{
+				{mountDest: "/init.sql", excluded: false, reason: ""},
+			},
+		},
+	}
+
+	runBindExclusionCases(t, cases)
+}
+
+func excludeMountDestinationsCases() []bindExclusionCase {
+	return []bindExclusionCase{
+		{
+			name:      "bind mount destination matches label is excluded",
+			container: "app",
+			labels:    map[string]string{filter.LabelExcludeMountDestinations: "/init.sql"},
+			mounts:    []mountSpec{{runtime.MountTypeBind, "/host/path/init.sql", "/init.sql"}},
+			expect: []expectation{
+				{mountDest: "/init.sql", excluded: true, reason: reasonDestLabel},
+			},
+		},
+		{
+			name:      "named volume destination matches label is excluded",
+			container: "db",
+			labels:    map[string]string{filter.LabelExcludeMountDestinations: "/var/lib/mysql"},
+			mounts:    []mountSpec{{runtime.MountTypeVolume, "mysql-data", "/var/lib/mysql"}},
+			expect: []expectation{
+				{mountDest: "/var/lib/mysql", excluded: true, reason: reasonDestLabel},
+			},
+		},
+		{
+			name:      "comma list with whitespace, one entry matches",
+			container: "db",
+			labels: map[string]string{
+				filter.LabelExcludeMountDestinations: " /etc/myapp ,  /var/lib/mysql , /tmp/cache ",
+			},
+			mounts: []mountSpec{
+				{runtime.MountTypeVolume, "mysql-data", "/var/lib/mysql"},
+				{runtime.MountTypeVolume, "logs", "/var/log/mysql"},
+			},
+			expect: []expectation{
+				{mountDest: "/var/lib/mysql", excluded: true, reason: reasonDestLabel},
+				{mountDest: "/var/log/mysql", excluded: false, reason: ""},
+			},
+		},
+		{
+			name:      "no matching entry includes all mounts",
+			container: "db",
+			labels: map[string]string{
+				filter.LabelExcludeMountDestinations: "/etc/myapp,/tmp/cache",
+			},
+			mounts: []mountSpec{{runtime.MountTypeVolume, "mysql-data", "/var/lib/mysql"}},
+			expect: []expectation{
+				{mountDest: "/var/lib/mysql", excluded: false, reason: ""},
+			},
+		},
+		{
+			name:      "whitespace-only label does not spuriously match",
+			container: "db",
+			labels:    map[string]string{filter.LabelExcludeMountDestinations: "   ,  ,"},
+			mounts: []mountSpec{
+				{runtime.MountTypeVolume, "mysql-data", "/var/lib/mysql"},
+				{runtime.MountTypeBind, "/host/init.sql", ""},
+			},
+			expect: []expectation{
+				{mountDest: "/var/lib/mysql", excluded: false, reason: ""},
+				{mountDest: "", excluded: false, reason: ""},
+			},
+		},
+	}
+}
+
+func TestApply_ExcludeMountDestinations(t *testing.T) {
+	t.Parallel()
+
+	runBindExclusionCases(t, excludeMountDestinationsCases())
+}
+
+func TestApply_ExcludeBindMountsAndDestinationsCombined(t *testing.T) {
+	t.Parallel()
+
+	cases := []bindExclusionCase{
+		{
+			name:      "both labels combined apply union of exclusions",
+			container: "db",
+			labels: map[string]string{
+				filter.LabelExcludeBindMounts:        filter.LabelValueTrue,
+				filter.LabelExcludeMountDestinations: "/var/lib/mysql",
+			},
+			mounts: []mountSpec{
+				{runtime.MountTypeBind, "/host/init.sql", "/init.sql"},
+				{runtime.MountTypeVolume, "mysql-data", "/var/lib/mysql"},
+				{runtime.MountTypeVolume, "logs", "/var/log/mysql"},
+			},
+			expect: []expectation{
+				{mountDest: "/init.sql", excluded: true, reason: reasonBindToggle},
+				{mountDest: "/var/lib/mysql", excluded: true, reason: reasonDestLabel},
+				{mountDest: "/var/log/mysql", excluded: false, reason: ""},
+			},
+		},
+	}
+
+	runBindExclusionCases(t, cases)
+}

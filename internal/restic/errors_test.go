@@ -89,3 +89,13 @@ func TestClassifyError_Unknown(t *testing.T) {
 		t.Errorf("want original error returned, got %v", err)
 	}
 }
+
+func TestErrSourceUnreadable_WrappedPreservesIdentity(t *testing.T) {
+	t.Parallel()
+
+	err := fmt.Errorf("wrapped: %w", restic.ErrSourceUnreadable)
+
+	if !errors.Is(err, restic.ErrSourceUnreadable) {
+		t.Errorf("want ErrSourceUnreadable, got %v", err)
+	}
+}
