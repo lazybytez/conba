@@ -158,6 +158,7 @@ conba backup              # Discover, filter, and backup all matching volumes
 conba backup --dry-run    # Show what would be backed up without executing
 conba forget              # Apply retention policies and prune
 conba forget --dry-run    # Show what would be forgotten without changes
+conba run                 # One-shot init + backup + forget cycle (intended for CI/CD)
 conba snapshots           # List snapshots
 conba version             # Print version info
 ```
