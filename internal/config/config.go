@@ -65,6 +65,16 @@ type Config struct {
 	Runtime   RuntimeConfig   `mapstructure:"runtime"`
 	Discovery DiscoveryConfig `mapstructure:"discovery"`
 	Restic    ResticConfig    `mapstructure:"restic"`
+	Retention RetentionConfig `mapstructure:"retention"`
+}
+
+// RetentionConfig holds snapshot retention policy fields.
+// Each field defaults to zero (no retention dimension).
+type RetentionConfig struct {
+	KeepDaily   int `mapstructure:"keep_daily"`
+	KeepWeekly  int `mapstructure:"keep_weekly"`
+	KeepMonthly int `mapstructure:"keep_monthly"`
+	KeepYearly  int `mapstructure:"keep_yearly"`
 }
 
 // ResticConfig holds restic repository and authentication configuration.
@@ -142,6 +152,8 @@ func Load(cfgFile string) (*Config, error) {
 	viperInstance.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viperInstance.AutomaticEnv()
 
+	bindEnvKeys(viperInstance)
+
 	err := readConfigFile(viperInstance, cfgFile)
 	if err != nil {
 		return nil, err
@@ -200,6 +212,18 @@ func setDefaults(viperInstance *viper.Viper) {
 	viperInstance.SetDefault("runtime.docker.host", DefaultDockerHost)
 	viperInstance.SetDefault("discovery.opt_in_only", false)
 	viperInstance.SetDefault("restic.binary", DefaultResticBinary)
+}
+
+// bindEnvKeys registers env-var bindings for nested config keys that have
+// no default value. Without this, viper's AutomaticEnv cannot bind env vars
+// to keys it does not already know about (e.g. via SetDefault or a config
+// file that defines them). The error from BindEnv is ignored because it
+// only returns an error when the key argument is empty.
+func bindEnvKeys(viperInstance *viper.Viper) {
+	_ = viperInstance.BindEnv("retention.keep_daily")
+	_ = viperInstance.BindEnv("retention.keep_weekly")
+	_ = viperInstance.BindEnv("retention.keep_monthly")
+	_ = viperInstance.BindEnv("retention.keep_yearly")
 }
 
 func (c *Config) validate() error {

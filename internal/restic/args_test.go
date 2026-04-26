@@ -115,7 +115,7 @@ func TestBuildForgetArgs_PolicyFields(t *testing.T) {
 				KeepYearly:  3,
 			},
 			want: []string{
-				"forget", "--prune", "--json",
+				"forget", "--json",
 				"--tag", "web",
 				"--keep-daily", "7",
 				"--keep-weekly", "4",
@@ -133,7 +133,7 @@ func TestBuildForgetArgs_PolicyFields(t *testing.T) {
 				KeepYearly:  0,
 			},
 			want: []string{
-				"forget", "--prune", "--json",
+				"forget", "--json",
 				"--tag", "db",
 				"--keep-daily", "7",
 				"--keep-monthly", "6",
@@ -145,7 +145,10 @@ func TestBuildForgetArgs_PolicyFields(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := restic.BuildForgetArgs(test.tags, test.policy)
+			got := restic.BuildForgetArgs(test.tags, test.policy, restic.ForgetOptions{
+				Prune:  false,
+				DryRun: false,
+			})
 			if !slices.Equal(got, test.want) {
 				t.Errorf("BuildForgetArgs(%v, %+v) = %v, want %v",
 					test.tags, test.policy, got, test.want)
@@ -195,7 +198,7 @@ func TestBuildForgetArgs_EdgeCases(t *testing.T) {
 				KeepYearly:  0,
 			},
 			want: []string{
-				"forget", "--prune", "--json",
+				"forget", "--json",
 				"--tag", "app",
 			},
 		},
@@ -209,7 +212,7 @@ func TestBuildForgetArgs_EdgeCases(t *testing.T) {
 				KeepYearly:  0,
 			},
 			want: []string{
-				"forget", "--prune", "--json",
+				"forget", "--json",
 				"--tag", "web,production",
 				"--keep-daily", "3",
 			},
@@ -220,11 +223,84 @@ func TestBuildForgetArgs_EdgeCases(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := restic.BuildForgetArgs(test.tags, test.policy)
+			got := restic.BuildForgetArgs(test.tags, test.policy, restic.ForgetOptions{
+				Prune:  false,
+				DryRun: false,
+			})
 			if !slices.Equal(got, test.want) {
 				t.Errorf("BuildForgetArgs(%v, %+v) = %v, want %v",
 					test.tags, test.policy, got, test.want)
 			}
 		})
+	}
+}
+
+func TestBuildForgetArgs_PruneFlag(t *testing.T) {
+	t.Parallel()
+
+	policy := restic.ForgetPolicy{KeepDaily: 1, KeepWeekly: 0, KeepMonthly: 0, KeepYearly: 0}
+	tags := []string{"web"}
+
+	tests := []struct {
+		name      string
+		opts      restic.ForgetOptions
+		wantFlag  []string
+		notWanted []string
+	}{
+		{
+			name:      "prune true appends --prune",
+			opts:      restic.ForgetOptions{Prune: true, DryRun: false},
+			wantFlag:  []string{"--prune"},
+			notWanted: []string{"--dry-run"},
+		},
+		{
+			name:      "prune false omits --prune",
+			opts:      restic.ForgetOptions{Prune: false, DryRun: false},
+			wantFlag:  nil,
+			notWanted: []string{"--prune", "--dry-run"},
+		},
+		{
+			name:      "dry-run true appends --dry-run",
+			opts:      restic.ForgetOptions{Prune: false, DryRun: true},
+			wantFlag:  []string{"--dry-run"},
+			notWanted: []string{"--prune"},
+		},
+		{
+			name:      "dry-run false omits --dry-run",
+			opts:      restic.ForgetOptions{Prune: false, DryRun: false},
+			wantFlag:  nil,
+			notWanted: []string{"--prune", "--dry-run"},
+		},
+		{
+			name:      "both true appends --prune and --dry-run",
+			opts:      restic.ForgetOptions{Prune: true, DryRun: true},
+			wantFlag:  []string{"--prune", "--dry-run"},
+			notWanted: nil,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := restic.BuildForgetArgs(tags, policy, test.opts)
+			assertFlagPresence(t, got, test.wantFlag, test.notWanted)
+		})
+	}
+}
+
+func assertFlagPresence(t *testing.T, got, want, notWanted []string) {
+	t.Helper()
+
+	for _, flag := range want {
+		if !slices.Contains(got, flag) {
+			t.Errorf("BuildForgetArgs(...) = %v, expected to contain %q", got, flag)
+		}
+	}
+
+	for _, flag := range notWanted {
+		if slices.Contains(got, flag) {
+			t.Errorf("BuildForgetArgs(...) = %v, expected NOT to contain %q", got, flag)
+		}
 	}
 }

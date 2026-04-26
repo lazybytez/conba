@@ -126,6 +126,7 @@ type configOpts struct {
 	IncludeNames        []string
 	IncludeNamePatterns []string
 	ExcludeNames        []string
+	Retention           config.RetentionConfig
 }
 
 // configTemplate is the minimal YAML accepted by config.Load. Field names
@@ -156,6 +157,21 @@ discovery:
 restic:
   repository: {{ printf "%q" .ResticRepoPath }}
   password: {{ printf "%q" .ResticPassword }}
+{{- if or .Retention.KeepDaily .Retention.KeepWeekly .Retention.KeepMonthly .Retention.KeepYearly }}
+retention:
+{{- if .Retention.KeepDaily }}
+  keep_daily: {{ .Retention.KeepDaily }}
+{{- end }}
+{{- if .Retention.KeepWeekly }}
+  keep_weekly: {{ .Retention.KeepWeekly }}
+{{- end }}
+{{- if .Retention.KeepMonthly }}
+  keep_monthly: {{ .Retention.KeepMonthly }}
+{{- end }}
+{{- if .Retention.KeepYearly }}
+  keep_yearly: {{ .Retention.KeepYearly }}
+{{- end }}
+{{- end }}
 `
 
 // writeConfig renders a conba.yaml into dir using opts, applies defaults
@@ -398,6 +414,29 @@ func runRestic(t *testing.T, repoPath string, args ...string) (string, string, e
 	runErr := cmd.Run()
 
 	return stdout.String(), stderr.String(), runErr
+}
+
+// backupAsHost writes a snapshot to repoPath via direct restic invocation
+// using --host hostname plus the supplied tags. sourcePath is backed up
+// as-is. Used to seed foreign-host snapshots that the conba forget loop
+// must respect (or affect, with --all-hosts) for host-scoping tests.
+func backupAsHost(t *testing.T, repoPath, hostname, sourcePath string, tags []string) {
+	t.Helper()
+
+	args := make([]string, 0, 3+2*len(tags)+1)
+	args = append(args, "backup", "--host", hostname)
+
+	for _, tag := range tags {
+		args = append(args, "--tag", tag)
+	}
+
+	args = append(args, sourcePath)
+
+	_, stderr, err := runRestic(t, repoPath, args...)
+	if err != nil {
+		t.Fatalf("restic backup --host %s %s: %v: %s",
+			hostname, sourcePath, err, strings.TrimSpace(stderr))
+	}
 }
 
 // isResticMissingRepo reports whether restic's stderr indicates the repo
