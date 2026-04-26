@@ -29,6 +29,12 @@ func TestWithConfigAndFromContext(t *testing.T) {
 			ExtraArgs:    nil,
 			Environment:  nil,
 		},
+		Retention: config.RetentionConfig{
+			KeepDaily:   0,
+			KeepWeekly:  0,
+			KeepMonthly: 0,
+			KeepYearly:  0,
+		},
 	}
 	ctx := config.WithConfig(context.Background(), cfg)
 

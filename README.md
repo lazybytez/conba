@@ -146,7 +146,7 @@ Configure per-container behavior with Docker labels:
 | `conba.post-command` | shell command | — | Post-backup command (command-snapshot) |
 | `conba.stream-command` | shell command | — | Stream command (stream strategy) |
 | `conba.stdin-filename` | filename | `stdin` | Filename for `--stdin-filename` |
-| `conba.retention` | `Nd,Nw,Nm,Ny` | global | Per-container retention override |
+| `conba.retention` | `Nd,Nw,Nm,Ny` | global | Override the global `retention:` policy for this container. Suffix-tagged, comma-separated, order-agnostic, case-insensitive. Example: `conba.retention: "7d,4w,6m,2y"`. Suffixes: `d` daily, `w` weekly, `m` monthly, `y` yearly. Missing components default to 0. |
 | `conba.exclude-volumes` | comma-separated | — | Comma-separated list matched against `Mount.Name`. For named volumes that's the volume name; for bind mounts it's the host source path (which is rarely portable across hosts — prefer `conba.exclude-mount-destinations` for bind mounts). |
 | `conba.exclude-bind-mounts` | `true`, `false` | `false` | Set to `true` on a container to exclude all of its bind-mounted paths from backup. Named volumes on the same container are not affected. Default: false (bind mounts are eligible). |
 | `conba.exclude-mount-destinations` | comma-separated | — | Comma-separated list of container-side destination paths. Any mount (bind or named volume) whose destination matches an entry exactly is excluded from backup. Example: `conba.exclude-mount-destinations: "/var/log,/etc/myapp/cache"`. |
@@ -157,6 +157,7 @@ Configure per-container behavior with Docker labels:
 conba backup              # Discover, filter, and backup all matching volumes
 conba backup --dry-run    # Show what would be backed up without executing
 conba forget              # Apply retention policies and prune
+conba forget --dry-run    # Show what would be forgotten without changes
 conba snapshots           # List snapshots
 conba version             # Print version info
 ```
