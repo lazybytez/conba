@@ -19,11 +19,13 @@ func TestInit_FreshRepo(t *testing.T) {
 	repoPath := filepath.Join(dir, "repo")
 
 	writeConfig(t, dir, configOpts{
-		ResticRepoPath:      repoPath,
-		ResticPassword:      "",
-		IncludeNames:        nil,
-		IncludeNamePatterns: nil,
-		ExcludeNames:        nil,
+		ResticRepoPath:           repoPath,
+		ResticPassword:           "",
+		IncludeNames:             nil,
+		IncludeNamePatterns:      nil,
+		ExcludeNames:             nil,
+		ResticEnvironment:        nil,
+		PreBackupCommandsEnabled: false,
 	})
 
 	cfg := runConfig{Dir: dir, Stdin: nil, Env: nil}
@@ -55,11 +57,13 @@ func TestInit_AlreadyInitialized(t *testing.T) {
 	repoPath := filepath.Join(dir, "repo")
 
 	writeConfig(t, dir, configOpts{
-		ResticRepoPath:      repoPath,
-		ResticPassword:      "",
-		IncludeNames:        nil,
-		IncludeNamePatterns: nil,
-		ExcludeNames:        nil,
+		ResticRepoPath:           repoPath,
+		ResticPassword:           "",
+		IncludeNames:             nil,
+		IncludeNamePatterns:      nil,
+		ExcludeNames:             nil,
+		ResticEnvironment:        nil,
+		PreBackupCommandsEnabled: false,
 	})
 
 	cfg := runConfig{Dir: dir, Stdin: nil, Env: nil}

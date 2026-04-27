@@ -11,17 +11,21 @@ import (
 
 // Exported aliases for unexported functions, used by tests in cli_test package.
 var (
-	ShortID          = shortID
-	GroupByContainer = groupByContainer
-	PrintResult      = printResult
-	PrintExcluded    = printExcluded
+	ShortID                    = shortID
+	GroupByContainer           = groupByContainer
+	PrintResult                = printResult
+	PrintResultWithFeatureFlag = printResultWithFeatureFlag
+	PrintExcluded              = printExcluded
 
 	PrintStatus         = printStatus
 	PrintNotInitialized = printNotInitialized
 	PrintLocked         = printLocked
 	HandleStatusError   = handleStatusError
 
-	PrintDryRun = printDryRun
+	PrintDryRun              = printDryRun
+	PrintDryRunWithPreBackup = printDryRunWithPreBackup
+
+	PrintPreBackupSummary = printPreBackupSummary
 
 	PrintSnapshots      = printSnapshots
 	ExtractTag          = extractTag
@@ -40,6 +44,7 @@ var (
 	_ func(string) string                           = shortID
 	_ func([]discovery.Target) [][]discovery.Target = groupByContainer
 	_ func(io.Writer, filter.Result) error          = printResult
+	_ func(io.Writer, filter.Result, bool) error    = printResultWithFeatureFlag
 	_ func(io.Writer, []filter.Exclusion) error     = printExcluded
 
 	_ func(io.Writer, string, []restic.Snapshot, restic.RepoStats) error = printStatus
@@ -48,6 +53,8 @@ var (
 	_ func(io.Writer, string, error) error                               = handleStatusError
 
 	_ func(io.Writer, []discovery.Target) error = printDryRun
+	_ func(io.Writer, []discovery.Target) error = printDryRunWithPreBackup
+	_ func(io.Writer, []discovery.Target) error = printPreBackupSummary
 
 	_ func(io.Writer, []restic.Snapshot) error = printSnapshots
 	_ func([]string, string) string            = extractTag

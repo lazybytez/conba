@@ -51,11 +51,13 @@ func TestBackup_FreshRepo_DiscoversAllNonIgnoredTargets(t *testing.T) {
 	repoPath := filepath.Join(dir, "repo")
 
 	writeConfig(t, dir, configOpts{
-		ResticRepoPath:      repoPath,
-		ResticPassword:      "",
-		IncludeNames:        nil,
-		IncludeNamePatterns: nil,
-		ExcludeNames:        nil,
+		ResticRepoPath:           repoPath,
+		ResticPassword:           "",
+		IncludeNames:             nil,
+		IncludeNamePatterns:      nil,
+		ExcludeNames:             nil,
+		ResticEnvironment:        nil,
+		PreBackupCommandsEnabled: false,
 	})
 
 	cfg := runConfig{Dir: dir, Stdin: nil, Env: nil}
@@ -142,11 +144,13 @@ func TestBackup_DryRun_NoSnapshots(t *testing.T) {
 	repoPath := filepath.Join(dir, "repo")
 
 	writeConfig(t, dir, configOpts{
-		ResticRepoPath:      repoPath,
-		ResticPassword:      "",
-		IncludeNames:        nil,
-		IncludeNamePatterns: nil,
-		ExcludeNames:        nil,
+		ResticRepoPath:           repoPath,
+		ResticPassword:           "",
+		IncludeNames:             nil,
+		IncludeNamePatterns:      nil,
+		ExcludeNames:             nil,
+		ResticEnvironment:        nil,
+		PreBackupCommandsEnabled: false,
 	})
 
 	cfg := runConfig{Dir: dir, Stdin: nil, Env: nil}
@@ -173,11 +177,13 @@ func TestBackup_RepeatedBackup_ProducesTwoSnapshotsPerTarget(t *testing.T) {
 	repoPath := filepath.Join(dir, "repo")
 
 	writeConfig(t, dir, configOpts{
-		ResticRepoPath:      repoPath,
-		ResticPassword:      "",
-		IncludeNames:        nil,
-		IncludeNamePatterns: nil,
-		ExcludeNames:        nil,
+		ResticRepoPath:           repoPath,
+		ResticPassword:           "",
+		IncludeNames:             nil,
+		IncludeNamePatterns:      nil,
+		ExcludeNames:             nil,
+		ResticEnvironment:        nil,
+		PreBackupCommandsEnabled: false,
 	})
 
 	cfg := runConfig{Dir: dir, Stdin: nil, Env: nil}
@@ -221,10 +227,8 @@ func TestBackup_RepeatedBackup_ProducesTwoSnapshotsPerTarget(t *testing.T) {
 
 	ignoredSnaps := snapshotsForContainer(snaps, containerIgnored)
 	if len(ignoredSnaps) != 0 {
-		t.Fatalf(
-			"expected 0 snapshots tagged container=%s; got %d",
-			containerIgnored, len(ignoredSnaps),
-		)
+		t.Fatalf("expected 0 snapshots tagged container=%s; got %d",
+			containerIgnored, len(ignoredSnaps))
 	}
 }
 
@@ -237,11 +241,13 @@ func TestBackup_DataMutationReflectedInDiff(t *testing.T) {
 	repoPath := filepath.Join(dir, "repo")
 
 	writeConfig(t, dir, configOpts{
-		ResticRepoPath:      repoPath,
-		ResticPassword:      "",
-		IncludeNames:        nil,
-		IncludeNamePatterns: nil,
-		ExcludeNames:        nil,
+		ResticRepoPath:           repoPath,
+		ResticPassword:           "",
+		IncludeNames:             nil,
+		IncludeNamePatterns:      nil,
+		ExcludeNames:             nil,
+		ResticEnvironment:        nil,
+		PreBackupCommandsEnabled: false,
 	})
 
 	cfg := runConfig{Dir: dir, Stdin: nil, Env: nil}
@@ -339,11 +345,13 @@ func TestBackup_BindMount_BackedUpByDefault(t *testing.T) {
 	repoPath := filepath.Join(dir, "repo")
 
 	writeConfig(t, dir, configOpts{
-		ResticRepoPath:      repoPath,
-		ResticPassword:      "",
-		IncludeNames:        nil,
-		IncludeNamePatterns: []string{"^conba-e2e-mysql$"},
-		ExcludeNames:        nil,
+		ResticRepoPath:           repoPath,
+		ResticPassword:           "",
+		IncludeNames:             nil,
+		IncludeNamePatterns:      []string{"^conba-e2e-mysql$"},
+		ExcludeNames:             nil,
+		ResticEnvironment:        nil,
+		PreBackupCommandsEnabled: false,
 	})
 
 	cfg := runConfig{Dir: dir, Stdin: nil, Env: nil}
@@ -398,11 +406,13 @@ func TestBackup_BindMount_ExcludedByDestinationLabel(t *testing.T) {
 	repoPath := filepath.Join(dir, "repo")
 
 	writeConfig(t, dir, configOpts{
-		ResticRepoPath:      repoPath,
-		ResticPassword:      "",
-		IncludeNames:        nil,
-		IncludeNamePatterns: []string{"^conba-e2e-bind-excluded$"},
-		ExcludeNames:        nil,
+		ResticRepoPath:           repoPath,
+		ResticPassword:           "",
+		IncludeNames:             nil,
+		IncludeNamePatterns:      []string{"^conba-e2e-bind-excluded$"},
+		ExcludeNames:             nil,
+		ResticEnvironment:        nil,
+		PreBackupCommandsEnabled: false,
 	})
 
 	cfg := runConfig{Dir: dir, Stdin: nil, Env: nil}

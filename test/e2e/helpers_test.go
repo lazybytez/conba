@@ -126,6 +126,14 @@ type configOpts struct {
 	IncludeNames        []string
 	IncludeNamePatterns []string
 	ExcludeNames        []string
+	// ResticEnvironment is rendered under restic.environment when non-empty.
+	// Pre-backup-command tests need PATH (so restic can find docker) and
+	// RESTIC_CACHE_DIR / HOME (restic refuses to spawn child commands
+	// without a cache directory). Volume-only tests leave it nil.
+	ResticEnvironment map[string]string
+	// PreBackupCommandsEnabled flips pre_backup_commands.enabled. Default
+	// (false / absent) leaves the feature off, matching production default.
+	PreBackupCommandsEnabled bool
 }
 
 // configTemplate is the minimal YAML accepted by config.Load. Field names
@@ -156,6 +164,16 @@ discovery:
 restic:
   repository: {{ printf "%q" .ResticRepoPath }}
   password: {{ printf "%q" .ResticPassword }}
+{{- if .ResticEnvironment }}
+  environment:
+{{- range $k, $v := .ResticEnvironment }}
+    {{ $k }}: {{ printf "%q" $v }}
+{{- end }}
+{{- end }}
+{{- if .PreBackupCommandsEnabled }}
+pre_backup_commands:
+  enabled: true
+{{- end }}
 `
 
 // writeConfig renders a conba.yaml into dir using opts, applies defaults

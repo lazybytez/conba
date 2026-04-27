@@ -176,6 +176,58 @@ func TestBuildStatsArgs(t *testing.T) {
 	}
 }
 
+func TestBuildBackupFromCommandArgs(t *testing.T) {
+	t.Parallel()
+
+	dumpCmd := []string{"docker", "exec", "mysql", "sh", "-c", "mysqldump"}
+	prefix := func(filename string) []string {
+		return []string{"backup", "--stdin-from-command", "--stdin-filename=" + filename}
+	}
+
+	tests := []struct {
+		name     string
+		filename string
+		tags     []string
+		args     []string
+		want     []string
+	}{
+		{
+			name: "no tags, no args", filename: "dump.sql", tags: nil, args: nil,
+			want: append(prefix("dump.sql"), "--"),
+		},
+		{
+			name: "no tags, with args", filename: "dump.sql", tags: nil, args: dumpCmd,
+			want: append(append(prefix("dump.sql"), "--"), dumpCmd...),
+		},
+		{
+			name: "one tag, with args", filename: "dump.sql", tags: []string{"a"}, args: dumpCmd,
+			want: append(append(prefix("dump.sql"), "--tag", "a", "--"), dumpCmd...),
+		},
+		{
+			name: "multi tags, with args", filename: "dump.sql",
+			tags: []string{"w", "p"}, args: dumpCmd,
+			want: append(append(prefix("dump.sql"), "--tag", "w,p", "--"), dumpCmd...),
+		},
+		{
+			name: "multi tags, empty args", filename: "stream.bin",
+			tags: []string{"w", "p"}, args: []string{},
+			want: append(prefix("stream.bin"), "--tag", "w,p", "--"),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := restic.BuildBackupFromCommandArgs(test.filename, test.tags, test.args)
+			if !slices.Equal(got, test.want) {
+				t.Errorf("BuildBackupFromCommandArgs(%q, %v, %v) = %v, want %v",
+					test.filename, test.tags, test.args, got, test.want)
+			}
+		})
+	}
+}
+
 func TestBuildForgetArgs_EdgeCases(t *testing.T) {
 	t.Parallel()
 

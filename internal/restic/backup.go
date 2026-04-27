@@ -26,6 +26,26 @@ func (c *Client) Backup(ctx context.Context, path string, tags []string) error {
 	return nil
 }
 
+// BackupFromCommand runs a restic backup that captures the stdout of
+// the given command (passed verbatim as args) into a snapshot named
+// after filename, with optional tags. The command's stderr flows to
+// the conba logger as warnings via Client.run, matching Backup. A
+// non-zero exit status from restic (which propagates the user
+// command's exit code) is wrapped as ErrResticFailed.
+//
+// The args slice is the user's command argv; conba does not
+// shell-interpret it. Any quoting must happen at the caller.
+func (c *Client) BackupFromCommand(
+	ctx context.Context, filename string, tags []string, args []string,
+) error {
+	_, err := c.run(ctx, BuildBackupFromCommandArgs(filename, tags, args))
+	if err != nil {
+		return fmt.Errorf("restic backup-from-command: %w", err)
+	}
+
+	return nil
+}
+
 // checkBackupSource pre-flights the backup source path. It classifies
 // fs.ErrNotExist and fs.ErrPermission as ErrSourceUnreadable so the
 // caller can skip the target rather than treat it as a hard failure.

@@ -114,6 +114,50 @@ func TestBuildTags_EmptyHostname(t *testing.T) {
 	}
 }
 
+func TestBuildStreamTags_Happy(t *testing.T) {
+	t.Parallel()
+
+	tags := backup.BuildStreamTags("mysql", "host01")
+
+	if len(tags) != 3 {
+		t.Fatalf("want 3 tags, got %d", len(tags))
+	}
+
+	if tags[0] != "container=mysql" {
+		t.Errorf("tags[0] = %q, want %q", tags[0], "container=mysql")
+	}
+
+	if tags[1] != "hostname=host01" {
+		t.Errorf("tags[1] = %q, want %q", tags[1], "hostname=host01")
+	}
+
+	if tags[2] != "kind=stream" {
+		t.Errorf("tags[2] = %q, want %q", tags[2], "kind=stream")
+	}
+}
+
+func TestBuildStreamTags_EmptyHostname(t *testing.T) {
+	t.Parallel()
+
+	tags := backup.BuildStreamTags("postgres", "")
+
+	if len(tags) != 3 {
+		t.Fatalf("want 3 tags, got %d", len(tags))
+	}
+
+	if tags[0] != "container=postgres" {
+		t.Errorf("tags[0] = %q, want %q", tags[0], "container=postgres")
+	}
+
+	if tags[1] != "hostname=" {
+		t.Errorf("tags[1] = %q, want %q", tags[1], "hostname=")
+	}
+
+	if tags[2] != "kind=stream" {
+		t.Errorf("tags[2] = %q, want %q", tags[2], "kind=stream")
+	}
+}
+
 func TestBuildTags_SpecialChars(t *testing.T) {
 	t.Parallel()
 

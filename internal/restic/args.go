@@ -19,6 +19,30 @@ func BuildBackupArgs(path string, tags []string) []string {
 	return args
 }
 
+// BuildBackupFromCommandArgs returns the argument slice for backing up
+// the stdout of a command via restic's --stdin-from-command.
+//
+// The user's command argv is passed verbatim after the -- separator;
+// conba does not shell-interpret it at this layer. Any quoting or
+// shell escaping must be done by the caller (typically by building
+// ["docker", "exec", container, "sh", "-c", userCmd]).
+//
+// The -- separator is required: without it, restic would interpret
+// arguments starting with "-" as flags rather than as part of the
+// user command.
+func BuildBackupFromCommandArgs(filename string, tags []string, args []string) []string {
+	out := []string{
+		"backup",
+		"--stdin-from-command",
+		"--stdin-filename=" + filename,
+	}
+	out = appendTags(out, tags)
+	out = append(out, "--")
+	out = append(out, args...)
+
+	return out
+}
+
 // BuildSnapshotArgs returns the argument slice for listing snapshots
 // with optional tag filtering.
 func BuildSnapshotArgs(tags []string) []string {

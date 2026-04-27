@@ -38,7 +38,8 @@ func testConfigWithRestic(resticCfg config.ResticConfig) *config.Config {
 				IDPatterns:   nil,
 			},
 		},
-		Restic: resticCfg,
+		Restic:            resticCfg,
+		PreBackupCommands: config.PreBackupCommandsConfig{Enabled: false},
 	}
 }
 

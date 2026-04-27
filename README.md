@@ -150,6 +150,78 @@ Configure per-container behavior with Docker labels:
 | `conba.exclude-volumes` | comma-separated | — | Comma-separated list matched against `Mount.Name`. For named volumes that's the volume name; for bind mounts it's the host source path (which is rarely portable across hosts — prefer `conba.exclude-mount-destinations` for bind mounts). |
 | `conba.exclude-bind-mounts` | `true`, `false` | `false` | Set to `true` on a container to exclude all of its bind-mounted paths from backup. Named volumes on the same container are not affected. Default: false (bind mounts are eligible). |
 | `conba.exclude-mount-destinations` | comma-separated | — | Comma-separated list of container-side destination paths. Any mount (bind or named volume) whose destination matches an entry exactly is excluded from backup. Example: `conba.exclude-mount-destinations: "/var/log,/etc/myapp/cache"`. |
+| `conba.pre-backup.command` | shell command | — | Required to enable a pre-backup command for the container; the shell string executed inside the container, whose stdout is streamed into restic as the snapshot. Requires `pre_backup_commands.enabled: true` in config. |
+| `conba.pre-backup.mode` | `replace`, `alongside` | `replace` | `replace` substitutes the stream snapshot for the container's volume snapshots; `alongside` produces the stream snapshot plus the volume snapshots. |
+| `conba.pre-backup.container` | container name | labeled container | Override the exec target — the named container must already be running. Use for sidecar patterns where dump tools live in a separate admin container. |
+| `conba.pre-backup.filename` | filename | labeled container name | Filename used for restic's `--stdin-filename` (e.g. `mysql.sql`). |
+
+## Pre-backup commands
+
+Stateful services like databases produce inconsistent on-disk files
+unless quiesced or routed through the engine's own export tool. Conba
+can run a shell command inside a container at backup time and stream
+its stdout into restic as the snapshot — for example, `mysqldump`
+piped straight into a restic snapshot tagged for the mysql container.
+
+The feature is **off by default**. Label-driven command execution is a
+qualitative change in conba's trust surface (anyone able to set labels
+on a container can cause conba to execute arbitrary shell strings
+inside it), so operators must opt in explicitly:
+
+```yaml
+pre_backup_commands:
+  enabled: true
+```
+
+When `pre_backup_commands.enabled` is `false` or absent (the default),
+all `conba.pre-backup.*` labels are ignored and volume backups proceed
+as usual.
+
+### Example: consistent MySQL backups via mysqldump
+
+Label the mysql container with the dump command and (optionally) a
+filename for the stream:
+
+```yaml
+# compose.yaml
+services:
+  mysql:
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    labels:
+      conba.pre-backup.command: 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysqldump --all-databases -uroot'
+      conba.pre-backup.filename: "mysql.sql"
+
+volumes:
+  mysql-data:
+```
+
+The `MYSQL_PWD` env var is preferred over `-p<password>` because the
+`-p<password>` form puts the password on the argv where any `ps`
+invocation in the container's PID namespace can read it; `MYSQL_PWD`
+keeps it in the env.
+
+Enable the feature in `conba.yaml`:
+
+```yaml
+pre_backup_commands:
+  enabled: true
+```
+
+At backup time, conba runs `mysqldump` inside the mysql container via
+`docker exec` and streams its stdout into a single restic snapshot
+tagged `container=mysql` and `kind=stream` (an internal tag conba
+writes to distinguish stream snapshots from volume snapshots — not a
+label you set). In the default `replace` mode, the on-disk
+`mysql-data` volume is **not** backed up as a separate snapshot —
+the dump is the canonical representation of the database's state, so
+the inconsistent at-rest files are skipped. Switch to
+`conba.pre-backup.mode: alongside` if the container also holds
+volumes you want backed up directly (e.g. an uploads directory next
+to the database).
 
 ## CLI Commands
 

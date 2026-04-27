@@ -61,10 +61,17 @@ var ErrMissingPassword = errors.New(
 
 // Config is the top-level configuration structure for conba.
 type Config struct {
-	Logging   LoggingConfig   `mapstructure:"logging"`
-	Runtime   RuntimeConfig   `mapstructure:"runtime"`
-	Discovery DiscoveryConfig `mapstructure:"discovery"`
-	Restic    ResticConfig    `mapstructure:"restic"`
+	Logging           LoggingConfig           `mapstructure:"logging"`
+	Runtime           RuntimeConfig           `mapstructure:"runtime"`
+	Discovery         DiscoveryConfig         `mapstructure:"discovery"`
+	Restic            ResticConfig            `mapstructure:"restic"`
+	PreBackupCommands PreBackupCommandsConfig `mapstructure:"pre_backup_commands"`
+}
+
+// PreBackupCommandsConfig holds configuration for commands executed inside
+// containers before each backup.
+type PreBackupCommandsConfig struct {
+	Enabled bool `mapstructure:"enabled"`
 }
 
 // ResticConfig holds restic repository and authentication configuration.

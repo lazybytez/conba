@@ -442,6 +442,93 @@ func TestResticConfigValidate_MissingPassword(t *testing.T) {
 	}
 }
 
+func TestLoadPreBackupCommands_AbsentDefaultsFalse(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := config.Load("")
+	if err != nil {
+		t.Fatalf("Load() returned unexpected error: %v", err)
+	}
+
+	if cfg.PreBackupCommands.Enabled {
+		t.Errorf(
+			"PreBackupCommands.Enabled = %v, want %v",
+			cfg.PreBackupCommands.Enabled,
+			false,
+		)
+	}
+}
+
+func TestLoadPreBackupCommands_EnabledTrue(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	cfgFile := filepath.Join(dir, "conba.yaml")
+	content := []byte("pre_backup_commands:\n  enabled: true\n")
+
+	writeErr := os.WriteFile(cfgFile, content, 0o600)
+	if writeErr != nil {
+		t.Fatalf("failed to write temp config: %v", writeErr)
+	}
+
+	cfg, err := config.Load(cfgFile)
+	if err != nil {
+		t.Fatalf("Load() returned unexpected error: %v", err)
+	}
+
+	if !cfg.PreBackupCommands.Enabled {
+		t.Errorf(
+			"PreBackupCommands.Enabled = %v, want %v",
+			cfg.PreBackupCommands.Enabled,
+			true,
+		)
+	}
+}
+
+func TestLoadPreBackupCommands_EnabledFalse(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	cfgFile := filepath.Join(dir, "conba.yaml")
+	content := []byte("pre_backup_commands:\n  enabled: false\n")
+
+	writeErr := os.WriteFile(cfgFile, content, 0o600)
+	if writeErr != nil {
+		t.Fatalf("failed to write temp config: %v", writeErr)
+	}
+
+	cfg, err := config.Load(cfgFile)
+	if err != nil {
+		t.Fatalf("Load() returned unexpected error: %v", err)
+	}
+
+	if cfg.PreBackupCommands.Enabled {
+		t.Errorf(
+			"PreBackupCommands.Enabled = %v, want %v",
+			cfg.PreBackupCommands.Enabled,
+			false,
+		)
+	}
+}
+
+func TestLoadPreBackupCommands_InvalidValue(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	cfgFile := filepath.Join(dir, "conba.yaml")
+	content := []byte("pre_backup_commands:\n  enabled: \"yes\"\n")
+
+	writeErr := os.WriteFile(cfgFile, content, 0o600)
+	if writeErr != nil {
+		t.Fatalf("failed to write temp config: %v", writeErr)
+	}
+
+	_, err := config.Load(cfgFile)
+	if err == nil {
+		t.Fatal("Load() expected error for invalid pre_backup_commands.enabled, got nil")
+	}
+}
+
 func TestLoadExplicitMissingFile(t *testing.T) {
 	t.Parallel()
 

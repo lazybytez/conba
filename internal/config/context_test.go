@@ -29,6 +29,7 @@ func TestWithConfigAndFromContext(t *testing.T) {
 			ExtraArgs:    nil,
 			Environment:  nil,
 		},
+		PreBackupCommands: config.PreBackupCommandsConfig{Enabled: false},
 	}
 	ctx := config.WithConfig(context.Background(), cfg)
 
