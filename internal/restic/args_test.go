@@ -176,6 +176,63 @@ func TestBuildStatsArgs(t *testing.T) {
 	}
 }
 
+func TestBuildDiffArgs(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		snapA string
+		snapB string
+		want  []string
+	}{
+		{
+			name: "two short ids", snapA: "abc", snapB: "def",
+			want: []string{"diff", "abc", "def"},
+		},
+		{
+			name: "passthrough verbatim", snapA: "first-id", snapB: "latest",
+			want: []string{"diff", "first-id", "latest"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := restic.BuildDiffArgs(test.snapA, test.snapB)
+			if !slices.Equal(got, test.want) {
+				t.Errorf("BuildDiffArgs(%q, %q) = %v, want %v",
+					test.snapA, test.snapB, got, test.want)
+			}
+		})
+	}
+}
+
+func TestBuildCheckArgs(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		readData bool
+		want     []string
+	}{
+		{name: "default", readData: false, want: []string{"check"}},
+		{name: "with read-data", readData: true, want: []string{"check", "--read-data"}},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := restic.BuildCheckArgs(test.readData)
+			if !slices.Equal(got, test.want) {
+				t.Errorf("BuildCheckArgs(%v) = %v, want %v",
+					test.readData, got, test.want)
+			}
+		})
+	}
+}
+
 func TestBuildForgetArgs_EdgeCases(t *testing.T) {
 	t.Parallel()
 
