@@ -306,6 +306,7 @@ conba forget              # Apply retention policies and prune
 conba forget --dry-run    # Show what would be forgotten without changes
 conba run                 # One-shot init + backup + forget cycle (intended for CI/CD)
 conba snapshots           # List snapshots
+conba diff <a> <b>        # Show file differences between two snapshots
 conba version             # Print version info
 ```
 

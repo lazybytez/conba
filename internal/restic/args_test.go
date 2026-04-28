@@ -438,3 +438,35 @@ func assertFlagPresence(t *testing.T, got, want, notWanted []string) {
 		}
 	}
 }
+
+func TestBuildDiffArgs(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		snapA string
+		snapB string
+		want  []string
+	}{
+		{
+			name: "two short ids", snapA: "abc", snapB: "def",
+			want: []string{"diff", "abc", "def"},
+		},
+		{
+			name: "passthrough verbatim", snapA: "first-id", snapB: "latest",
+			want: []string{"diff", "first-id", "latest"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := restic.BuildDiffArgs(test.snapA, test.snapB)
+			if !slices.Equal(got, test.want) {
+				t.Errorf("BuildDiffArgs(%q, %q) = %v, want %v",
+					test.snapA, test.snapB, got, test.want)
+			}
+		})
+	}
+}
