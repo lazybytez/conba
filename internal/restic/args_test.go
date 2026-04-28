@@ -165,6 +165,31 @@ func TestBuildUnlockArgs(t *testing.T) {
 	}
 }
 
+func TestBuildCheckArgs(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		readData bool
+		want     []string
+	}{
+		{name: "default", readData: false, want: []string{"check"}},
+		{name: "with read-data", readData: true, want: []string{"check", "--read-data"}},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := restic.BuildCheckArgs(test.readData)
+			if !slices.Equal(got, test.want) {
+				t.Errorf("BuildCheckArgs(%v) = %v, want %v",
+					test.readData, got, test.want)
+			}
+		})
+	}
+}
+
 func TestBuildStatsArgs(t *testing.T) {
 	t.Parallel()
 

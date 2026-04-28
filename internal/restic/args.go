@@ -47,6 +47,18 @@ func BuildUnlockArgs() []string {
 	return []string{"unlock"}
 }
 
+// BuildCheckArgs returns the argument slice for verifying repository
+// integrity. When readData is true, all data blobs are read and verified
+// (slow but exhaustive); otherwise only repository structure is checked.
+func BuildCheckArgs(readData bool) []string {
+	args := []string{"check"}
+	if readData {
+		args = append(args, "--read-data")
+	}
+
+	return args
+}
+
 // BuildStatsArgs returns the argument slice for retrieving repository statistics.
 func BuildStatsArgs() []string {
 	return []string{"stats", "--json"}

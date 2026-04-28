@@ -158,6 +158,8 @@ conba backup              # Discover, filter, and backup all matching volumes
 conba backup --dry-run    # Show what would be backed up without executing
 conba forget              # Apply retention policies and prune
 conba snapshots           # List snapshots
+conba verify              # Verify restic repository integrity
+conba verify --read-data  # Full data verification (slow)
 conba version             # Print version info
 ```
 
