@@ -176,6 +176,94 @@ func TestBuildStatsArgs(t *testing.T) {
 	}
 }
 
+func TestBuildRestoreArgs(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		snapshotID string
+		targetPath string
+		dryRun     bool
+		want       []string
+	}{
+		{
+			name:       "no dry-run",
+			snapshotID: "abc",
+			targetPath: "/tmp/r",
+			dryRun:     false,
+			want:       []string{"restore", "abc", "--target", "/tmp/r"},
+		},
+		{
+			name:       "with dry-run",
+			snapshotID: "abc",
+			targetPath: "/tmp/r",
+			dryRun:     true,
+			want:       []string{"restore", "abc", "--target", "/tmp/r", "--dry-run"},
+		},
+		{
+			name:       "target path with spaces",
+			snapshotID: "deadbeef",
+			targetPath: "/tmp/restore target",
+			dryRun:     false,
+			want:       []string{"restore", "deadbeef", "--target", "/tmp/restore target"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := restic.BuildRestoreArgs(test.snapshotID, test.targetPath, test.dryRun)
+			if !slices.Equal(got, test.want) {
+				t.Errorf("BuildRestoreArgs(%q, %q, %v) = %v, want %v",
+					test.snapshotID, test.targetPath, test.dryRun, got, test.want)
+			}
+		})
+	}
+}
+
+func TestBuildDumpArgs(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		snapshotID string
+		filename   string
+		want       []string
+	}{
+		{
+			name:       "simple filename",
+			snapshotID: "abc",
+			filename:   "dump.sql",
+			want:       []string{"dump", "abc", "dump.sql"},
+		},
+		{
+			name:       "absolute filename",
+			snapshotID: "deadbeef",
+			filename:   "/data/dump.sql",
+			want:       []string{"dump", "deadbeef", "/data/dump.sql"},
+		},
+		{
+			name:       "filename with spaces",
+			snapshotID: "abc",
+			filename:   "/data/my dump.sql",
+			want:       []string{"dump", "abc", "/data/my dump.sql"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := restic.BuildDumpArgs(test.snapshotID, test.filename)
+			if !slices.Equal(got, test.want) {
+				t.Errorf("BuildDumpArgs(%q, %q) = %v, want %v",
+					test.snapshotID, test.filename, got, test.want)
+			}
+		})
+	}
+}
+
 func TestBuildBackupFromCommandArgs(t *testing.T) {
 	t.Parallel()
 

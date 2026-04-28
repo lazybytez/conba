@@ -38,10 +38,11 @@ func TestRunStream_DefaultExecTarget(t *testing.T) {
 	t.Parallel()
 
 	spec := filter.Spec{
-		Command:   "mysqldump --all-databases",
-		Mode:      filter.ModeReplace,
-		Container: "",
-		Filename:  "",
+		Command:        "mysqldump --all-databases",
+		Mode:           filter.ModeReplace,
+		Container:      "",
+		Filename:       "",
+		RestoreCommand: "",
 	}
 
 	fn, captured := stubStreamFn(nil)
@@ -61,10 +62,11 @@ func TestRunStream_OverrideExecTarget(t *testing.T) {
 	t.Parallel()
 
 	spec := filter.Spec{
-		Command:   "pg_dumpall",
-		Mode:      filter.ModeReplace,
-		Container: "pg-sidecar",
-		Filename:  "",
+		Command:        "pg_dumpall",
+		Mode:           filter.ModeReplace,
+		Container:      "pg-sidecar",
+		Filename:       "",
+		RestoreCommand: "",
 	}
 
 	fn, captured := stubStreamFn(nil)
@@ -84,10 +86,11 @@ func TestRunStream_DefaultFilename(t *testing.T) {
 	t.Parallel()
 
 	spec := filter.Spec{
-		Command:   "echo hello",
-		Mode:      filter.ModeReplace,
-		Container: "",
-		Filename:  "",
+		Command:        "echo hello",
+		Mode:           filter.ModeReplace,
+		Container:      "",
+		Filename:       "",
+		RestoreCommand: "",
 	}
 
 	fn, captured := stubStreamFn(nil)
@@ -106,10 +109,11 @@ func TestRunStream_CustomFilename(t *testing.T) {
 	t.Parallel()
 
 	spec := filter.Spec{
-		Command:   "mysqldump",
-		Mode:      filter.ModeReplace,
-		Container: "",
-		Filename:  "dump.sql",
+		Command:        "mysqldump",
+		Mode:           filter.ModeReplace,
+		Container:      "",
+		Filename:       "dump.sql",
+		RestoreCommand: "",
 	}
 
 	fn, captured := stubStreamFn(nil)
@@ -128,10 +132,11 @@ func TestRunStream_TagsMatchHelper(t *testing.T) {
 	t.Parallel()
 
 	spec := filter.Spec{
-		Command:   "echo hi",
-		Mode:      filter.ModeReplace,
-		Container: "",
-		Filename:  "",
+		Command:        "echo hi",
+		Mode:           filter.ModeReplace,
+		Container:      "",
+		Filename:       "",
+		RestoreCommand: "",
 	}
 
 	fn, captured := stubStreamFn(nil)
@@ -151,10 +156,11 @@ func TestRunStream_PropagatesError(t *testing.T) {
 	t.Parallel()
 
 	spec := filter.Spec{
-		Command:   "false",
-		Mode:      filter.ModeReplace,
-		Container: "",
-		Filename:  "",
+		Command:        "false",
+		Mode:           filter.ModeReplace,
+		Container:      "",
+		Filename:       "",
+		RestoreCommand: "",
 	}
 
 	fn, _ := stubStreamFn(errStream)

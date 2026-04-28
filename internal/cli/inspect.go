@@ -201,17 +201,24 @@ func printPreBackupDetails(
 		header = "  pre-backup: (disabled, pre_backup_commands.enabled is false)\n"
 	}
 
+	restoreCommand := spec.RestoreCommand
+	if restoreCommand == "" {
+		restoreCommand = "(unset)"
+	}
+
 	_, err = fmt.Fprintf(
 		out,
 		header+
 			"    command:   %s\n"+
 			"    mode:      %s\n"+
 			"    exec:      %s\n"+
-			"    filename:  %s\n",
+			"    filename:  %s\n"+
+			"    restore-command: %s\n",
 		spec.Command,
 		spec.Mode,
 		execContainer,
 		filename,
+		restoreCommand,
 	)
 	if err != nil {
 		return fmt.Errorf("writing output: %w", err)

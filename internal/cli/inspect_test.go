@@ -559,6 +559,178 @@ func TestPrintResult_LabeledContainerWithFeatureEnabledNoNote(t *testing.T) {
 	}
 }
 
+func TestPrintResult_LabeledContainerShowsRestoreCommandWhenSet(t *testing.T) {
+	t.Parallel()
+
+	labels := map[string]string{
+		"conba.pre-backup.command":         "pg_dump -U postgres app",
+		"conba.pre-backup.restore-command": "psql -U postgres app",
+	}
+
+	result := filter.Result{
+		Included: []discovery.Target{
+			{
+				Container: newLabeledContainerInfo("app", labels),
+				Mount:     newMountInfo("volume", "data", "/data"),
+			},
+		},
+		Excluded: nil,
+	}
+
+	var buf bytes.Buffer
+
+	err := cli.PrintResult(&buf, result)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	output := buf.String()
+
+	if !strings.Contains(output, "restore-command: psql -U postgres app") {
+		t.Errorf("output should contain restore-command line, got:\n%s", output)
+	}
+}
+
+func TestPrintResult_LabeledContainerShowsRestoreCommandUnsetMarker(t *testing.T) {
+	t.Parallel()
+
+	labels := map[string]string{
+		"conba.pre-backup.command": "pg_dump -U postgres app",
+	}
+
+	result := filter.Result{
+		Included: []discovery.Target{
+			{
+				Container: newLabeledContainerInfo("app", labels),
+				Mount:     newMountInfo("volume", "data", "/data"),
+			},
+		},
+		Excluded: nil,
+	}
+
+	var buf bytes.Buffer
+
+	err := cli.PrintResult(&buf, result)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	output := buf.String()
+
+	if !strings.Contains(output, "restore-command: (unset)") {
+		t.Errorf("output should contain restore-command (unset) marker, got:\n%s", output)
+	}
+}
+
+func TestPrintResult_UnlabeledContainerHasNoRestoreCommandLine(t *testing.T) {
+	t.Parallel()
+
+	result := filter.Result{
+		Included: []discovery.Target{
+			{
+				Container: newContainerInfo("abc123def456", "app"),
+				Mount:     newMountInfo("volume", "data", "/data"),
+			},
+		},
+		Excluded: nil,
+	}
+
+	var buf bytes.Buffer
+
+	err := cli.PrintResult(&buf, result)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	output := buf.String()
+
+	if strings.Contains(output, "restore-command") {
+		t.Errorf(
+			"output should not contain restore-command line for unlabeled container, got:\n%s",
+			output,
+		)
+	}
+}
+
+func TestPrintResult_MultiMountLabeledContainerRestoreCommandAppearsOnce(t *testing.T) {
+	t.Parallel()
+
+	labels := map[string]string{
+		"conba.pre-backup.command":         "pg_dump -U postgres app",
+		"conba.pre-backup.restore-command": "psql -U postgres app",
+	}
+	ctr := newLabeledContainerInfo("app", labels)
+
+	result := filter.Result{
+		Included: []discovery.Target{
+			{Container: ctr, Mount: newMountInfo("volume", "data", "/data")},
+			{Container: ctr, Mount: newMountInfo("volume", "logs", "/logs")},
+			{Container: ctr, Mount: newMountInfo("volume", "cache", "/cache")},
+		},
+		Excluded: nil,
+	}
+
+	var buf bytes.Buffer
+
+	err := cli.PrintResult(&buf, result)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	output := buf.String()
+	count := strings.Count(output, "restore-command:")
+
+	if count != 1 {
+		t.Errorf(
+			"restore-command line should appear exactly once for multi-mount container, got %d:\n%s",
+			count,
+			output,
+		)
+	}
+}
+
+func TestPrintResult_LabeledContainerRestoreCommandWithFeatureDisabled(t *testing.T) {
+	t.Parallel()
+
+	labels := map[string]string{
+		"conba.pre-backup.command":         "pg_dump -U postgres app",
+		"conba.pre-backup.restore-command": "psql -U postgres app",
+	}
+
+	result := filter.Result{
+		Included: []discovery.Target{
+			{
+				Container: newLabeledContainerInfo("app", labels),
+				Mount:     newMountInfo("volume", "data", "/data"),
+			},
+		},
+		Excluded: nil,
+	}
+
+	var buf bytes.Buffer
+
+	err := cli.PrintResultWithFeatureFlag(&buf, result, false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	output := buf.String()
+
+	if !strings.Contains(output, "disabled") {
+		t.Errorf(
+			"output should still mark the pre-backup section as disabled, got:\n%s",
+			output,
+		)
+	}
+
+	if !strings.Contains(output, "restore-command: psql -U postgres app") {
+		t.Errorf(
+			"output should still render restore-command line when feature disabled, got:\n%s",
+			output,
+		)
+	}
+}
+
 func TestPrintResult_InvalidModeEmitsErrorLine(t *testing.T) {
 	t.Parallel()
 

@@ -9,10 +9,11 @@ import (
 
 // Container label keys controlling pre-backup command execution.
 const (
-	LabelPreBackupCommand   = "conba.pre-backup.command"
-	LabelPreBackupMode      = "conba.pre-backup.mode"
-	LabelPreBackupContainer = "conba.pre-backup.container"
-	LabelPreBackupFilename  = "conba.pre-backup.filename"
+	LabelPreBackupCommand        = "conba.pre-backup.command"
+	LabelPreBackupMode           = "conba.pre-backup.mode"
+	LabelPreBackupContainer      = "conba.pre-backup.container"
+	LabelPreBackupFilename       = "conba.pre-backup.filename"
+	LabelPreBackupRestoreCommand = "conba.pre-backup.restore-command"
 )
 
 // Mode is the execution mode for a pre-backup command.
@@ -32,11 +33,15 @@ var ErrInvalidPreBackupMode = errors.New("invalid pre-backup mode")
 //
 // An empty Container means "run the command in the labeled container itself".
 // An empty Filename means "use the labeled container's name as the filename".
+// An empty RestoreCommand means no label-driven restore command is configured;
+// it is independent of the presence-of-spec check, which is governed solely by
+// Command.
 type Spec struct {
-	Command   string
-	Mode      Mode
-	Container string
-	Filename  string
+	Command        string
+	Mode           Mode
+	Container      string
+	Filename       string
+	RestoreCommand string
 }
 
 // PreBackup parses the conba.pre-backup.* labels from the target's container.
@@ -52,19 +57,32 @@ func PreBackup(target discovery.Target) (Spec, bool, error) {
 
 	command, ok := labels[LabelPreBackupCommand]
 	if !ok || command == "" {
-		return Spec{Command: "", Mode: "", Container: "", Filename: ""}, false, nil
+		return Spec{
+			Command:        "",
+			Mode:           "",
+			Container:      "",
+			Filename:       "",
+			RestoreCommand: "",
+		}, false, nil
 	}
 
 	mode, err := parseMode(labels[LabelPreBackupMode])
 	if err != nil {
-		return Spec{Command: "", Mode: "", Container: "", Filename: ""}, false, err
+		return Spec{
+			Command:        "",
+			Mode:           "",
+			Container:      "",
+			Filename:       "",
+			RestoreCommand: "",
+		}, false, err
 	}
 
 	return Spec{
-		Command:   command,
-		Mode:      mode,
-		Container: labels[LabelPreBackupContainer],
-		Filename:  labels[LabelPreBackupFilename],
+		Command:        command,
+		Mode:           mode,
+		Container:      labels[LabelPreBackupContainer],
+		Filename:       labels[LabelPreBackupFilename],
+		RestoreCommand: labels[LabelPreBackupRestoreCommand],
 	}, true, nil
 }
 

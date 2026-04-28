@@ -66,6 +66,24 @@ func BuildForgetArgs(tags []string, policy ForgetPolicy) []string {
 	return args
 }
 
+// BuildRestoreArgs returns the argument slice for restoring snapshotID into
+// targetPath. When dryRun is true, --dry-run is appended so restic reports
+// what it would restore without writing files.
+func BuildRestoreArgs(snapshotID string, targetPath string, dryRun bool) []string {
+	args := []string{"restore", snapshotID, "--target", targetPath}
+	if dryRun {
+		args = append(args, "--dry-run")
+	}
+
+	return args
+}
+
+// BuildDumpArgs returns the argument slice for dumping a single file from
+// snapshotID to stdout. The filename is the path inside the snapshot to dump.
+func BuildDumpArgs(snapshotID string, filename string) []string {
+	return []string{"dump", snapshotID, filename}
+}
+
 // BuildUnlockArgs returns the argument slice for unlocking a restic repository.
 func BuildUnlockArgs() []string {
 	return []string{"unlock"}

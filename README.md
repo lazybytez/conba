@@ -154,6 +154,7 @@ Configure per-container behavior with Docker labels:
 | `conba.pre-backup.mode` | `replace`, `alongside` | `replace` | `replace` substitutes the stream snapshot for the container's volume snapshots; `alongside` produces the stream snapshot plus the volume snapshots. |
 | `conba.pre-backup.container` | container name | labeled container | Override the exec target — the named container must already be running. Use for sidecar patterns where dump tools live in a separate admin container. |
 | `conba.pre-backup.filename` | filename | labeled container name | Filename used for restic's `--stdin-filename` (e.g. `mysql.sql`). |
+| `conba.pre-backup.restore-command` | shell command | — | Restore-side command, run inside the labeled container (locked, no sidecar override) by `conba restore` for stream snapshots when `--to-command` is not provided. Requires `pre_backup_commands.enabled: true` in config. |
 
 ## Pre-backup commands
 
@@ -223,11 +224,87 @@ the inconsistent at-rest files are skipped. Switch to
 volumes you want backed up directly (e.g. an uploads directory next
 to the database).
 
+### Example: restoring a MySQL backup
+
+`conba restore` is one command that handles both volume and stream
+snapshots; conba inspects the resolved snapshot's tags and picks
+the right restic primitive (`restic restore` for volume snapshots,
+`restic dump` piped into `docker exec -i` for stream snapshots).
+Operators describe *what* to restore via flags. Use `conba snapshots`
+to enumerate candidates and pass `--snapshot <id>` for a
+point-in-time restore; without it, conba selects the latest
+matching snapshot.
+
+#### Volume restore
+
+Restore the latest `mysql-data` volume snapshot to a sidecar
+directory for inspection:
+
+```sh
+conba restore --container mysql --volume data --to /tmp/recovered
+```
+
+The operator owns the container lifecycle. Stop the mysql container
+before overwriting the live volume; conba does not auto-stop, and
+restoring into a path mounted by a running container is the
+operator's risk to take. If the destination is non-empty, conba
+refuses unless `--force` is passed.
+
+#### Stream restore via CLI flag
+
+Pipe the latest stream snapshot back into mysql via the standard
+client:
+
+```sh
+conba restore --container mysql \
+  --to-command "MYSQL_PWD=\"$MYSQL_ROOT_PASSWORD\" mysql -uroot"
+```
+
+Stream restore requires the target container to be running (it is
+a `docker exec` requirement). Conba refuses with a clear error
+otherwise.
+
+#### Stream restore via label
+
+Add a `conba.pre-backup.restore-command` label alongside the
+existing `conba.pre-backup.command` label so operators do not have
+to retype the restore invocation:
+
+```yaml
+# compose.yaml
+services:
+  mysql:
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    labels:
+      conba.pre-backup.command: 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysqldump --all-databases -uroot'
+      conba.pre-backup.filename: "mysql.sql"
+      conba.pre-backup.restore-command: 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot'
+
+volumes:
+  mysql-data:
+```
+
+With the label in place, the restore reduces to:
+
+```sh
+conba restore --container mysql
+```
+
+The label form is gated by the same `pre_backup_commands.enabled:
+true` feature flag as the backup-side command. When the flag is
+false or absent, the label is ignored. When both `--to-command` and
+the label are set, the CLI flag wins.
+
 ## CLI Commands
 
 ```
 conba backup              # Discover, filter, and backup all matching volumes
 conba backup --dry-run    # Show what would be backed up without executing
+conba restore             # Restore a volume snapshot to a host path or pipe a stream snapshot back into a container
 conba forget              # Apply retention policies and prune
 conba snapshots           # List snapshots
 conba version             # Print version info
