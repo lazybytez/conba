@@ -14,6 +14,7 @@ import (
 	"github.com/lazybytez/conba/internal/restic"
 	"github.com/lazybytez/conba/internal/runtime/docker"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"go.uber.org/zap"
 )
 
@@ -23,6 +24,33 @@ import (
 var errEmptyGlobalRetention = errors.New(
 	"surgical forget requires a retention: block in config; none found",
 )
+
+// forgetFlags holds the CLI-provided flags for the forget command.
+type forgetFlags struct {
+	dryRun    bool
+	noPrune   bool
+	allHosts  bool
+	container string
+	volume    string
+	tags      []string
+}
+
+// surgical reports whether the user supplied any of the tag-based filters
+// that switch forget into surgical (single-snapshot-set) mode.
+func (f forgetFlags) surgical() bool {
+	return f.container != "" || f.volume != "" || len(f.tags) > 0
+}
+
+// forgetRequest bundles the dependencies and inputs shared by the
+// surgical and discovery-driven forget paths.
+type forgetRequest struct {
+	cmd      *cobra.Command
+	cfg      *config.Config
+	logger   *zap.Logger
+	client   *restic.Client
+	hostname string
+	flags    forgetFlags
+}
 
 // NewForgetCommand creates the forget subcommand that applies retention
 // policies to existing snapshots and (optionally) prunes the repository.
@@ -58,14 +86,7 @@ func runForget(cmd *cobra.Command, _ []string) error {
 		return errMissingConfig
 	}
 
-	dryRun, _ := cmd.Flags().GetBool("dry-run")
-	noPrune, _ := cmd.Flags().GetBool("no-prune")
-	allHosts, _ := cmd.Flags().GetBool("all-hosts")
-	containerFlag, _ := cmd.Flags().GetString("container")
-	volumeFlag, _ := cmd.Flags().GetString("volume")
-	tagFlags, _ := cmd.Flags().GetStringArray("tag")
-
-	surgical := containerFlag != "" || volumeFlag != "" || len(tagFlags) > 0
+	flags := readForgetFlags(cmd.Flags())
 
 	client, err := restic.New(cfg.Restic, logger)
 	if err != nil {
@@ -77,54 +98,58 @@ func runForget(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("get hostname: %w", err)
 	}
 
-	if surgical {
-		return runForgetSurgical(
-			cmd, cfg, client, hostname,
-			containerFlag, volumeFlag, tagFlags,
-			allHosts, noPrune, dryRun,
-		)
+	req := forgetRequest{
+		cmd:      cmd,
+		cfg:      cfg,
+		logger:   logger,
+		client:   client,
+		hostname: hostname,
+		flags:    flags,
 	}
 
-	return runForgetDiscovery(
-		cmd, cfg, logger, client, hostname, allHosts, noPrune, dryRun,
-	)
+	if flags.surgical() {
+		return runForgetSurgical(req)
+	}
+
+	return runForgetDiscovery(req)
 }
 
-func runForgetSurgical(
-	cmd *cobra.Command,
-	cfg *config.Config,
-	client *restic.Client,
-	hostname string,
-	containerFlag string,
-	volumeFlag string,
-	tagFlags []string,
-	allHosts bool,
-	noPrune bool,
-	dryRun bool,
-) error {
-	if cfg.Retention.KeepDaily+cfg.Retention.KeepWeekly+
-		cfg.Retention.KeepMonthly+cfg.Retention.KeepYearly == 0 {
+// readForgetFlags reads the user-provided forget flags into a struct.
+func readForgetFlags(flags *pflag.FlagSet) forgetFlags {
+	return forgetFlags{
+		dryRun:    flagBool(flags, "dry-run"),
+		noPrune:   flagBool(flags, "no-prune"),
+		allHosts:  flagBool(flags, "all-hosts"),
+		container: flagString(flags, "container"),
+		volume:    flagString(flags, "volume"),
+		tags:      flagStringArray(flags, "tag"),
+	}
+}
+
+func runForgetSurgical(req forgetRequest) error {
+	if req.cfg.Retention.KeepDaily+req.cfg.Retention.KeepWeekly+
+		req.cfg.Retention.KeepMonthly+req.cfg.Retention.KeepYearly == 0 {
 		return errEmptyGlobalRetention
 	}
 
-	tags := buildSurgicalTags(containerFlag, volumeFlag, tagFlags, hostname, allHosts)
+	tags := buildSurgicalTags(req.flags, req.hostname)
 
 	policy := restic.ForgetPolicy{
-		KeepDaily:   cfg.Retention.KeepDaily,
-		KeepWeekly:  cfg.Retention.KeepWeekly,
-		KeepMonthly: cfg.Retention.KeepMonthly,
-		KeepYearly:  cfg.Retention.KeepYearly,
+		KeepDaily:   req.cfg.Retention.KeepDaily,
+		KeepWeekly:  req.cfg.Retention.KeepWeekly,
+		KeepMonthly: req.cfg.Retention.KeepMonthly,
+		KeepYearly:  req.cfg.Retention.KeepYearly,
 	}
 
-	opts := restic.ForgetOptions{Prune: !noPrune, DryRun: dryRun}
+	opts := restic.ForgetOptions{Prune: !req.flags.noPrune, DryRun: req.flags.dryRun}
 
-	err := client.Forget(cmd.Context(), tags, policy, opts)
+	err := req.client.Forget(req.cmd.Context(), tags, policy, opts)
 	if err != nil {
 		return fmt.Errorf("surgical forget: %w", err)
 	}
 
-	out := cmd.OutOrStdout()
-	if dryRun {
+	out := req.cmd.OutOrStdout()
+	if req.flags.dryRun {
 		_, writeErr := fmt.Fprintln(out,
 			"Forget complete (dry-run): 1 would succeed, 0 skipped, 0 failed.")
 		if writeErr != nil {
@@ -143,45 +168,30 @@ func runForgetSurgical(
 	return nil
 }
 
-func buildSurgicalTags(
-	containerFlag string,
-	volumeFlag string,
-	tagFlags []string,
-	hostname string,
-	allHosts bool,
-) []string {
+func buildSurgicalTags(flags forgetFlags, hostname string) []string {
 	var tags []string
 
-	if containerFlag != "" {
-		tags = append(tags, "container="+containerFlag)
+	if flags.container != "" {
+		tags = append(tags, "container="+flags.container)
 	}
 
-	if volumeFlag != "" {
-		tags = append(tags, "volume="+volumeFlag)
+	if flags.volume != "" {
+		tags = append(tags, "volume="+flags.volume)
 	}
 
-	tags = append(tags, tagFlags...)
+	tags = append(tags, flags.tags...)
 
-	if !allHosts {
+	if !flags.allHosts {
 		tags = append(tags, "hostname="+hostname)
 	}
 
 	return tags
 }
 
-func runForgetDiscovery(
-	cmd *cobra.Command,
-	cfg *config.Config,
-	logger *zap.Logger,
-	client *restic.Client,
-	hostname string,
-	allHosts bool,
-	noPrune bool,
-	dryRun bool,
-) error {
-	ctx := cmd.Context()
+func runForgetDiscovery(req forgetRequest) error {
+	ctx := req.cmd.Context()
 
-	runtime, cleanup, err := connectDockerForForget(ctx, cfg, logger)
+	runtime, cleanup, err := connectDockerForForget(ctx, req.cfg, req.logger)
 	if err != nil {
 		return err
 	}
@@ -193,10 +203,10 @@ func runForgetDiscovery(
 		return fmt.Errorf("discover volumes: %w", err)
 	}
 
-	result := filter.Apply(targets, cfg.Discovery)
+	result := filter.Apply(targets, req.cfg.Discovery)
 
 	if len(result.Included) == 0 {
-		_, writeErr := fmt.Fprintln(cmd.OutOrStdout(), "No volumes to forget.")
+		_, writeErr := fmt.Fprintln(req.cmd.OutOrStdout(), "No volumes to forget.")
 		if writeErr != nil {
 			return fmt.Errorf("writing output: %w", writeErr)
 		}
@@ -205,19 +215,19 @@ func runForgetDiscovery(
 	}
 
 	opts := forget.Options{
-		Hostname: hostname,
-		AllHosts: allHosts,
-		DryRun:   dryRun,
-		Prune:    !noPrune,
+		Hostname: req.hostname,
+		AllHosts: req.flags.allHosts,
+		DryRun:   req.flags.dryRun,
+		Prune:    !req.flags.noPrune,
 	}
 
 	err = forget.Run(
 		ctx,
 		result.Included,
-		client.Forget,
-		cfg.Retention,
+		req.client.Forget,
+		req.cfg.Retention,
 		opts,
-		cmd.OutOrStdout(),
+		req.cmd.OutOrStdout(),
 	)
 	if err != nil {
 		return fmt.Errorf("run forget: %w", err)
