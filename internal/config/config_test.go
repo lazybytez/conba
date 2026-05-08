@@ -518,6 +518,32 @@ func TestLoad_RetentionFromEnv(t *testing.T) {
 	}
 }
 
+func TestLoad_ResticFromEnv(t *testing.T) {
+	t.Setenv("CONBA_RESTIC_REPOSITORY", "/tmp/probe-repo")
+	t.Setenv("CONBA_RESTIC_PASSWORD", "probe-password")
+	t.Setenv("CONBA_RESTIC_PASSWORD_FILE", "/etc/probe-pwfile")
+
+	cfg, err := config.Load("")
+	if err != nil {
+		t.Fatalf("Load() returned unexpected error: %v", err)
+	}
+
+	if cfg.Restic.Repository != "/tmp/probe-repo" {
+		t.Errorf("Restic.Repository = %q, want %q",
+			cfg.Restic.Repository, "/tmp/probe-repo")
+	}
+
+	if cfg.Restic.Password != "probe-password" {
+		t.Errorf("Restic.Password = %q, want %q",
+			cfg.Restic.Password, "probe-password")
+	}
+
+	if cfg.Restic.PasswordFile != "/etc/probe-pwfile" {
+		t.Errorf("Restic.PasswordFile = %q, want %q",
+			cfg.Restic.PasswordFile, "/etc/probe-pwfile")
+	}
+}
+
 func TestLoad_EmptyRetentionDoesNotFail(t *testing.T) {
 	t.Parallel()
 

@@ -152,8 +152,6 @@ func Load(cfgFile string) (*Config, error) {
 	viperInstance.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viperInstance.AutomaticEnv()
 
-	bindEnvKeys(viperInstance)
-
 	err := readConfigFile(viperInstance, cfgFile)
 	if err != nil {
 		return nil, err
@@ -205,6 +203,11 @@ func readConfigFile(viperInstance *viper.Viper, cfgFile string) error {
 	return nil
 }
 
+// setDefaults registers default values for every config key. Keys that
+// have no meaningful default still get a zero value here so viper's
+// AutomaticEnv knows the key exists and can populate it from CONBA_*
+// env vars during Unmarshal — without a registered key, env-only loading
+// silently leaves the field empty.
 func setDefaults(viperInstance *viper.Viper) {
 	viperInstance.SetDefault("logging.level", LogLevelInfo)
 	viperInstance.SetDefault("logging.format", LogFormatHuman)
@@ -212,18 +215,13 @@ func setDefaults(viperInstance *viper.Viper) {
 	viperInstance.SetDefault("runtime.docker.host", DefaultDockerHost)
 	viperInstance.SetDefault("discovery.opt_in_only", false)
 	viperInstance.SetDefault("restic.binary", DefaultResticBinary)
-}
-
-// bindEnvKeys registers env-var bindings for nested config keys that have
-// no default value. Without this, viper's AutomaticEnv cannot bind env vars
-// to keys it does not already know about (e.g. via SetDefault or a config
-// file that defines them). The error from BindEnv is ignored because it
-// only returns an error when the key argument is empty.
-func bindEnvKeys(viperInstance *viper.Viper) {
-	_ = viperInstance.BindEnv("retention.keep_daily")
-	_ = viperInstance.BindEnv("retention.keep_weekly")
-	_ = viperInstance.BindEnv("retention.keep_monthly")
-	_ = viperInstance.BindEnv("retention.keep_yearly")
+	viperInstance.SetDefault("restic.repository", "")
+	viperInstance.SetDefault("restic.password", "")
+	viperInstance.SetDefault("restic.password_file", "")
+	viperInstance.SetDefault("retention.keep_daily", 0)
+	viperInstance.SetDefault("retention.keep_weekly", 0)
+	viperInstance.SetDefault("retention.keep_monthly", 0)
+	viperInstance.SetDefault("retention.keep_yearly", 0)
 }
 
 func (c *Config) validate() error {
