@@ -77,6 +77,16 @@ type RetentionConfig struct {
 	KeepYearly  int `mapstructure:"keep_yearly"`
 }
 
+// IsEmpty reports whether no retention dimension is configured. An empty
+// policy means the caller has expressed no retention rules at all and
+// callers should treat this as "no policy" rather than "keep zero of each".
+func (r RetentionConfig) IsEmpty() bool {
+	return r.KeepDaily == 0 &&
+		r.KeepWeekly == 0 &&
+		r.KeepMonthly == 0 &&
+		r.KeepYearly == 0
+}
+
 // ResticConfig holds restic repository and authentication configuration.
 type ResticConfig struct {
 	Binary       string            `mapstructure:"binary"`

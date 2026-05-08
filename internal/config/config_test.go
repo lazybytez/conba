@@ -442,6 +442,43 @@ func TestResticConfigValidate_MissingPassword(t *testing.T) {
 	}
 }
 
+func TestRetentionConfig_IsEmpty(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		cfg  config.RetentionConfig
+		want bool
+	}{
+		{"all zero", retentionFor(0, 0, 0, 0), true},
+		{"keep_daily set", retentionFor(7, 0, 0, 0), false},
+		{"keep_weekly set", retentionFor(0, 4, 0, 0), false},
+		{"keep_monthly set", retentionFor(0, 0, 6, 0), false},
+		{"keep_yearly set", retentionFor(0, 0, 0, 1), false},
+		{"all set", retentionFor(7, 4, 6, 1), false},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := test.cfg.IsEmpty()
+			if got != test.want {
+				t.Errorf("IsEmpty() = %t, want %t", got, test.want)
+			}
+		})
+	}
+}
+
+func retentionFor(daily, weekly, monthly, yearly int) config.RetentionConfig {
+	return config.RetentionConfig{
+		KeepDaily:   daily,
+		KeepWeekly:  weekly,
+		KeepMonthly: monthly,
+		KeepYearly:  yearly,
+	}
+}
+
 func TestLoadExplicitMissingFile(t *testing.T) {
 	t.Parallel()
 
