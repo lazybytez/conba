@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/lazybytez/conba/internal/backup"
 	"github.com/lazybytez/conba/internal/config"
 	"github.com/lazybytez/conba/internal/discovery"
 	"github.com/lazybytez/conba/internal/filter"
@@ -127,20 +128,12 @@ func readForgetFlags(flags *pflag.FlagSet) forgetFlags {
 }
 
 func runForgetSurgical(req forgetRequest) error {
-	if req.cfg.Retention.KeepDaily+req.cfg.Retention.KeepWeekly+
-		req.cfg.Retention.KeepMonthly+req.cfg.Retention.KeepYearly == 0 {
+	if req.cfg.Retention.IsEmpty() {
 		return errEmptyGlobalRetention
 	}
 
 	tags := buildSurgicalTags(req.flags, req.hostname)
-
-	policy := restic.ForgetPolicy{
-		KeepDaily:   req.cfg.Retention.KeepDaily,
-		KeepWeekly:  req.cfg.Retention.KeepWeekly,
-		KeepMonthly: req.cfg.Retention.KeepMonthly,
-		KeepYearly:  req.cfg.Retention.KeepYearly,
-	}
-
+	policy := forget.ToResticPolicy(req.cfg.Retention)
 	opts := restic.ForgetOptions{Prune: !req.flags.noPrune, DryRun: req.flags.dryRun}
 
 	err := req.client.Forget(req.cmd.Context(), tags, policy, opts)
@@ -148,19 +141,12 @@ func runForgetSurgical(req forgetRequest) error {
 		return fmt.Errorf("surgical forget: %w", err)
 	}
 
-	out := req.cmd.OutOrStdout()
+	message := "Surgical forget complete."
 	if req.flags.dryRun {
-		_, writeErr := fmt.Fprintln(out,
-			"Forget complete (dry-run): 1 would succeed, 0 skipped, 0 failed.")
-		if writeErr != nil {
-			return fmt.Errorf("writing output: %w", writeErr)
-		}
-
-		return nil
+		message = "Surgical forget complete (dry-run)."
 	}
 
-	_, writeErr := fmt.Fprintln(out,
-		"Forget complete: 1 succeeded, 0 skipped, 0 failed.")
+	_, writeErr := fmt.Fprintln(req.cmd.OutOrStdout(), message)
 	if writeErr != nil {
 		return fmt.Errorf("writing output: %w", writeErr)
 	}
@@ -172,17 +158,17 @@ func buildSurgicalTags(flags forgetFlags, hostname string) []string {
 	var tags []string
 
 	if flags.container != "" {
-		tags = append(tags, "container="+flags.container)
+		tags = append(tags, backup.ContainerTagPrefix+flags.container)
 	}
 
 	if flags.volume != "" {
-		tags = append(tags, "volume="+flags.volume)
+		tags = append(tags, backup.VolumeTagPrefix+flags.volume)
 	}
 
 	tags = append(tags, flags.tags...)
 
 	if !flags.allHosts {
-		tags = append(tags, "hostname="+hostname)
+		tags = append(tags, backup.HostTagPrefix+hostname)
 	}
 
 	return tags

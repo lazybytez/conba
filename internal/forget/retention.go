@@ -138,27 +138,14 @@ func Resolve(
 			return config.RetentionConfig{}, ResolutionNone, err
 		}
 
-		if isNonZero(parsed) {
+		if !parsed.IsEmpty() {
 			return parsed, ResolutionLabel, nil
 		}
 	}
 
-	if isNonZero(global) {
+	if !global.IsEmpty() {
 		return global, ResolutionGlobal, nil
 	}
 
-	return zeroPolicy(), ResolutionNone, nil
-}
-
-func zeroPolicy() config.RetentionConfig {
-	return config.RetentionConfig{
-		KeepDaily:   0,
-		KeepWeekly:  0,
-		KeepMonthly: 0,
-		KeepYearly:  0,
-	}
-}
-
-func isNonZero(c config.RetentionConfig) bool {
-	return c.KeepDaily+c.KeepWeekly+c.KeepMonthly+c.KeepYearly > 0
+	return config.RetentionConfig{}, ResolutionNone, nil //nolint:exhaustruct
 }

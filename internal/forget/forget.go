@@ -37,12 +37,6 @@ type Options struct {
 // (parse error or restic error). Mirrors backup.ErrTargetsFailed.
 var ErrTargetsFailed = errors.New("forget targets failed")
 
-// hostTagPrefix is the prefix on the per-host tag emitted by
-// backup.BuildTags. The forget loop strips tags with this prefix when
-// opts.AllHosts is true so retention applies across every host that
-// shares the repository.
-const hostTagPrefix = "hostname="
-
 // targetOutcome classifies the result of forgetting on a single target.
 type targetOutcome int
 
@@ -127,7 +121,7 @@ func runTarget(
 	}
 
 	tags := buildTags(target, opts)
-	resticPolicy := toResticPolicy(policy)
+	resticPolicy := ToResticPolicy(policy)
 	resticOpts := restic.ForgetOptions{Prune: opts.Prune, DryRun: opts.DryRun}
 
 	err = forgetFn(ctx, tags, resticPolicy, resticOpts)
@@ -166,7 +160,7 @@ func buildTags(target discovery.Target, opts Options) []string {
 	filtered := make([]string, 0, len(tags))
 
 	for _, tag := range tags {
-		if strings.HasPrefix(tag, hostTagPrefix) {
+		if strings.HasPrefix(tag, backup.HostTagPrefix) {
 			continue
 		}
 
@@ -176,7 +170,10 @@ func buildTags(target discovery.Target, opts Options) []string {
 	return filtered
 }
 
-func toResticPolicy(c config.RetentionConfig) restic.ForgetPolicy {
+// ToResticPolicy projects a RetentionConfig onto restic's ForgetPolicy
+// shape. Both the discovery loop and the surgical CLI path use this
+// helper so the field mapping has a single source of truth.
+func ToResticPolicy(c config.RetentionConfig) restic.ForgetPolicy {
 	return restic.ForgetPolicy{
 		KeepDaily:   c.KeepDaily,
 		KeepWeekly:  c.KeepWeekly,
