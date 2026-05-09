@@ -33,6 +33,9 @@ const (
 	ResolutionNone   Resolution = "none"
 )
 
+// minEntryLen is the smallest valid retention entry: one digit plus a suffix.
+const minEntryLen = 2
+
 // ParseRetentionLabel parses the conba.retention label syntax into a
 // RetentionConfig. The syntax is comma-separated, suffix-tagged,
 // order-agnostic, case-insensitive on suffix, and whitespace-tolerant.
@@ -48,7 +51,7 @@ func ParseRetentionLabel(raw string) (config.RetentionConfig, error) {
 
 	seen := map[byte]bool{}
 
-	for entry := range strings.SplitSeq(raw, ",") {
+	for entry := range strings.SplitSeq(strings.ToLower(raw), ",") {
 		trimmed := strings.TrimSpace(entry)
 		if trimmed == "" {
 			continue
@@ -63,30 +66,17 @@ func ParseRetentionLabel(raw string) (config.RetentionConfig, error) {
 	return cfg, nil
 }
 
-// minEntryLen is the smallest valid retention entry: one digit plus a suffix.
-const minEntryLen = 2
-
+// applyEntry parses a single "<int><suffix>" entry and writes the
+// value into the matching RetentionConfig field. The entry is assumed
+// to be lowercase and trimmed.
 func applyEntry(cfg *config.RetentionConfig, entry string, seen map[byte]bool) error {
 	if len(entry) < minEntryLen {
 		return fmt.Errorf("%w: missing suffix: %q", ErrInvalidRetentionLabel, entry)
 	}
 
 	suffix := entry[len(entry)-1]
-	if suffix >= 'A' && suffix <= 'Z' {
-		suffix += 'a' - 'A'
-	}
 
-	field := fieldForSuffix(suffix)
-	if field == nil {
-		return fmt.Errorf(
-			"%w: unknown suffix %q: %q",
-			ErrInvalidRetentionLabel, string(suffix), entry,
-		)
-	}
-
-	prefix := entry[:len(entry)-1]
-
-	value, err := strconv.Atoi(prefix)
+	value, err := strconv.Atoi(entry[:len(entry)-1])
 	if err != nil {
 		return fmt.Errorf("%w: non-numeric: %q", ErrInvalidRetentionLabel, entry)
 	}
@@ -99,25 +89,25 @@ func applyEntry(cfg *config.RetentionConfig, entry string, seen map[byte]bool) e
 		return fmt.Errorf("%w: suffix repeated: %q", ErrInvalidRetentionLabel, entry)
 	}
 
-	seen[suffix] = true
-	*field(cfg) = value
-
-	return nil
-}
-
-func fieldForSuffix(suffix byte) func(*config.RetentionConfig) *int {
 	switch suffix {
 	case 'd':
-		return func(c *config.RetentionConfig) *int { return &c.KeepDaily }
+		cfg.KeepDaily = value
 	case 'w':
-		return func(c *config.RetentionConfig) *int { return &c.KeepWeekly }
+		cfg.KeepWeekly = value
 	case 'm':
-		return func(c *config.RetentionConfig) *int { return &c.KeepMonthly }
+		cfg.KeepMonthly = value
 	case 'y':
-		return func(c *config.RetentionConfig) *int { return &c.KeepYearly }
+		cfg.KeepYearly = value
 	default:
-		return nil
+		return fmt.Errorf(
+			"%w: unknown suffix %q: %q",
+			ErrInvalidRetentionLabel, string(suffix), entry,
+		)
 	}
+
+	seen[suffix] = true
+
+	return nil
 }
 
 // Resolve returns the effective retention policy for a target along
