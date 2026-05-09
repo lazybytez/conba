@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -13,7 +12,6 @@ import (
 	"github.com/lazybytez/conba/internal/forget"
 	"github.com/lazybytez/conba/internal/logging"
 	"github.com/lazybytez/conba/internal/restic"
-	"github.com/lazybytez/conba/internal/runtime/docker"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"go.uber.org/zap"
@@ -177,7 +175,7 @@ func buildSurgicalTags(flags forgetFlags, hostname string) []string {
 func runForgetDiscovery(req forgetRequest) error {
 	ctx := req.cmd.Context()
 
-	runtime, cleanup, err := connectDockerForForget(ctx, req.cfg, req.logger)
+	runtime, cleanup, err := connectDocker(ctx, req.cfg, req.logger)
 	if err != nil {
 		return err
 	}
@@ -220,28 +218,4 @@ func runForgetDiscovery(req forgetRequest) error {
 	}
 
 	return nil
-}
-
-func connectDockerForForget(
-	ctx context.Context,
-	cfg *config.Config,
-	logger *zap.Logger,
-) (*docker.Client, func(), error) {
-	logger.Debug("connecting to docker",
-		zap.String("host", cfg.Runtime.Docker.Host))
-
-	runtime, err := docker.New(ctx, cfg.Runtime.Docker.Host)
-	if err != nil {
-		return nil, nil, fmt.Errorf("connect to docker: %w", err)
-	}
-
-	cleanup := func() {
-		closeErr := runtime.Close()
-		if closeErr != nil {
-			logger.Warn("failed to close docker client",
-				zap.Error(closeErr))
-		}
-	}
-
-	return runtime, cleanup, nil
 }
