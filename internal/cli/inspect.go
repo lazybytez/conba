@@ -8,9 +8,7 @@ import (
 	"github.com/lazybytez/conba/internal/discovery"
 	"github.com/lazybytez/conba/internal/filter"
 	"github.com/lazybytez/conba/internal/logging"
-	"github.com/lazybytez/conba/internal/runtime/docker"
 	"github.com/spf13/cobra"
-	"go.uber.org/zap"
 )
 
 // NewInspectCommand creates the inspect subcommand that lists all
@@ -32,21 +30,12 @@ func runInspect(cmd *cobra.Command, _ []string) error {
 		return errMissingConfig
 	}
 
-	logger.Debug("connecting to docker",
-		zap.String("host", cfg.Runtime.Docker.Host))
-
-	runtime, err := docker.New(ctx, cfg.Runtime.Docker.Host)
+	runtime, cleanup, err := connectDocker(ctx, cfg, logger)
 	if err != nil {
-		return fmt.Errorf("connect to docker: %w", err)
+		return err
 	}
 
-	defer func() {
-		closeErr := runtime.Close()
-		if closeErr != nil {
-			logger.Warn("failed to close docker client",
-				zap.Error(closeErr))
-		}
-	}()
+	defer cleanup()
 
 	targets, err := discovery.Discover(ctx, runtime)
 	if err != nil {

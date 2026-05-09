@@ -11,6 +11,9 @@ linters:
       exclude:
         - "github.com/spf13/cobra\\.Command"
         - "github.com/docker/docker/api/types/container\\.ListOptions"
+        # configOpts is the e2e scenario struct: partial init is the design,
+        # zero values fall back to defaults inside writeConfig.
+        - "github.com/lazybytez/conba/test/e2e_test\\.configOpts"
     tagliatelle:
       case:
         rules:

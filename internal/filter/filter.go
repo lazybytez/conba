@@ -18,6 +18,7 @@ const (
 	LabelExcludeVolumes           = "conba.exclude-volumes"
 	LabelExcludeBindMounts        = "conba.exclude-bind-mounts"
 	LabelExcludeMountDestinations = "conba.exclude-mount-destinations"
+	LabelRetention                = "conba.retention"
 )
 
 // Label values for the enabled label.

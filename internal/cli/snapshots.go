@@ -105,6 +105,22 @@ func flagString(flags *pflag.FlagSet, name string) string {
 	return value
 }
 
+// flagBool returns the value of a bool flag, silently yielding false when
+// the flag is missing or of the wrong type.
+func flagBool(flags *pflag.FlagSet, name string) bool {
+	value, _ := flags.GetBool(name)
+
+	return value
+}
+
+// flagStringArray returns the value of a string-array flag, silently
+// yielding nil when the flag is missing or of the wrong type.
+func flagStringArray(flags *pflag.FlagSet, name string) []string {
+	value, _ := flags.GetStringArray(name)
+
+	return value
+}
+
 // printSnapshots writes a tabular listing of snapshots followed by a
 // summary line with the total count.
 func printSnapshots(out io.Writer, snapshots []restic.Snapshot) error {

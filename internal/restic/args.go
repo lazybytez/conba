@@ -28,16 +28,26 @@ func BuildSnapshotArgs(tags []string) []string {
 	return args
 }
 
-// BuildForgetArgs returns the argument slice for a forget-and-prune operation
-// with optional tags and retention policy. Only non-zero policy values produce
-// the corresponding --keep-* flag.
-func BuildForgetArgs(tags []string, policy ForgetPolicy) []string {
-	args := []string{"forget", "--prune", "--json"}
+// BuildForgetArgs returns the argument slice for a forget operation with
+// optional tags and retention policy. Only non-zero policy values produce the
+// corresponding --keep-* flag. When opts.Prune is true, --prune is appended so
+// restic reclaims disk space; when opts.DryRun is true, --dry-run is appended
+// so restic reports what would be forgotten without applying changes.
+func BuildForgetArgs(tags []string, policy ForgetPolicy, opts ForgetOptions) []string {
+	args := []string{"forget", "--json"}
 	args = appendTags(args, tags)
 	args = appendKeep(args, "--keep-daily", policy.KeepDaily)
 	args = appendKeep(args, "--keep-weekly", policy.KeepWeekly)
 	args = appendKeep(args, "--keep-monthly", policy.KeepMonthly)
 	args = appendKeep(args, "--keep-yearly", policy.KeepYearly)
+
+	if opts.Prune {
+		args = append(args, "--prune")
+	}
+
+	if opts.DryRun {
+		args = append(args, "--dry-run")
+	}
 
 	return args
 }

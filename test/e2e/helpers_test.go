@@ -41,6 +41,11 @@ const (
 
 	conbaCommandTimeout  = 30 * time.Second
 	dockerCommandTimeout = 15 * time.Second
+
+	// foreignHostname is the hostname used for snapshots seeded outside
+	// the conba host scope, so forget host-scoping tests can assert
+	// whether they survive (default) or get reduced (--all-hosts).
+	foreignHostname = "other-host"
 )
 
 // defaultIncludeNamePatterns pins container discovery to the e2e fixture
@@ -126,6 +131,17 @@ type configOpts struct {
 	IncludeNames        []string
 	IncludeNamePatterns []string
 	ExcludeNames        []string
+	Retention           config.RetentionConfig
+}
+
+// retentionKeepOneDaily is the only retention shape the forget e2e
+// suite needs today. Declared once with all dimensions explicit so
+// exhaustruct is satisfied without per-site partial literals.
+var retentionKeepOneDaily = config.RetentionConfig{
+	KeepDaily:   1,
+	KeepWeekly:  0,
+	KeepMonthly: 0,
+	KeepYearly:  0,
 }
 
 // configTemplate is the minimal YAML accepted by config.Load. Field names
@@ -156,6 +172,21 @@ discovery:
 restic:
   repository: {{ printf "%q" .ResticRepoPath }}
   password: {{ printf "%q" .ResticPassword }}
+{{- if or .Retention.KeepDaily .Retention.KeepWeekly .Retention.KeepMonthly .Retention.KeepYearly }}
+retention:
+{{- if .Retention.KeepDaily }}
+  keep_daily: {{ .Retention.KeepDaily }}
+{{- end }}
+{{- if .Retention.KeepWeekly }}
+  keep_weekly: {{ .Retention.KeepWeekly }}
+{{- end }}
+{{- if .Retention.KeepMonthly }}
+  keep_monthly: {{ .Retention.KeepMonthly }}
+{{- end }}
+{{- if .Retention.KeepYearly }}
+  keep_yearly: {{ .Retention.KeepYearly }}
+{{- end }}
+{{- end }}
 `
 
 // writeConfig renders a conba.yaml into dir using opts, applies defaults
@@ -398,6 +429,29 @@ func runRestic(t *testing.T, repoPath string, args ...string) (string, string, e
 	runErr := cmd.Run()
 
 	return stdout.String(), stderr.String(), runErr
+}
+
+// backupAsForeignHost writes a snapshot to repoPath via direct restic
+// invocation under foreignHostname plus the supplied tags. Used to seed
+// foreign-host snapshots that the conba forget loop must respect
+// (default) or affect (with --all-hosts) in host-scoping tests.
+func backupAsForeignHost(t *testing.T, repoPath, sourcePath string, tags []string) {
+	t.Helper()
+
+	args := make([]string, 0, 3+2*len(tags)+1)
+	args = append(args, "backup", "--host", foreignHostname)
+
+	for _, tag := range tags {
+		args = append(args, "--tag", tag)
+	}
+
+	args = append(args, sourcePath)
+
+	_, stderr, err := runRestic(t, repoPath, args...)
+	if err != nil {
+		t.Fatalf("restic backup --host %s %s: %v: %s",
+			foreignHostname, sourcePath, err, strings.TrimSpace(stderr))
+	}
 }
 
 // isResticMissingRepo reports whether restic's stderr indicates the repo

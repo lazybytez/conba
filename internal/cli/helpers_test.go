@@ -39,6 +39,12 @@ func testConfigWithRestic(resticCfg config.ResticConfig) *config.Config {
 			},
 		},
 		Restic: resticCfg,
+		Retention: config.RetentionConfig{
+			KeepDaily:   0,
+			KeepWeekly:  0,
+			KeepMonthly: 0,
+			KeepYearly:  0,
+		},
 	}
 }
 

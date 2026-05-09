@@ -50,6 +50,8 @@ services:
             && [ -f /data/hello.txt ] || echo hello > /data/hello.txt
             && [ -f /data/configs/version.txt ] || echo v1 > /data/configs/version.txt
             && exec tail -f /dev/null'
+        labels:
+            conba.retention: "1d"
         healthcheck:
             test: ["CMD", "test", "-f", "/data/hello.txt"]
             interval: 5s

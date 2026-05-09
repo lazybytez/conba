@@ -442,11 +442,189 @@ func TestResticConfigValidate_MissingPassword(t *testing.T) {
 	}
 }
 
+func TestRetentionConfig_IsEmpty(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		cfg  config.RetentionConfig
+		want bool
+	}{
+		{"all zero", retentionFor(0, 0, 0, 0), true},
+		{"keep_daily set", retentionFor(7, 0, 0, 0), false},
+		{"keep_weekly set", retentionFor(0, 4, 0, 0), false},
+		{"keep_monthly set", retentionFor(0, 0, 6, 0), false},
+		{"keep_yearly set", retentionFor(0, 0, 0, 1), false},
+		{"all set", retentionFor(7, 4, 6, 1), false},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := test.cfg.IsEmpty()
+			if got != test.want {
+				t.Errorf("IsEmpty() = %t, want %t", got, test.want)
+			}
+		})
+	}
+}
+
+func retentionFor(daily, weekly, monthly, yearly int) config.RetentionConfig {
+	return config.RetentionConfig{
+		KeepDaily:   daily,
+		KeepWeekly:  weekly,
+		KeepMonthly: monthly,
+		KeepYearly:  yearly,
+	}
+}
+
 func TestLoadExplicitMissingFile(t *testing.T) {
 	t.Parallel()
 
 	_, err := config.Load("/nonexistent/conba.yaml")
 	if err == nil {
 		t.Fatal("Load() expected error for nonexistent explicit file, got nil")
+	}
+}
+
+func TestLoad_RetentionFromYAML(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	cfgFile := filepath.Join(dir, "conba.yaml")
+	content := []byte(`retention:
+  keep_daily: 7
+  keep_weekly: 4
+  keep_monthly: 6
+  keep_yearly: 2
+`)
+
+	writeErr := os.WriteFile(cfgFile, content, 0o600)
+	if writeErr != nil {
+		t.Fatalf("failed to write temp config: %v", writeErr)
+	}
+
+	cfg, err := config.Load(cfgFile)
+	if err != nil {
+		t.Fatalf("Load() returned unexpected error: %v", err)
+	}
+
+	if cfg.Retention.KeepDaily != 7 {
+		t.Errorf("Retention.KeepDaily = %d, want %d", cfg.Retention.KeepDaily, 7)
+	}
+
+	if cfg.Retention.KeepWeekly != 4 {
+		t.Errorf("Retention.KeepWeekly = %d, want %d", cfg.Retention.KeepWeekly, 4)
+	}
+
+	if cfg.Retention.KeepMonthly != 6 {
+		t.Errorf("Retention.KeepMonthly = %d, want %d", cfg.Retention.KeepMonthly, 6)
+	}
+
+	if cfg.Retention.KeepYearly != 2 {
+		t.Errorf("Retention.KeepYearly = %d, want %d", cfg.Retention.KeepYearly, 2)
+	}
+}
+
+func TestLoad_RetentionFromEnv(t *testing.T) {
+	t.Setenv("CONBA_RETENTION_KEEP_DAILY", "7")
+	t.Setenv("CONBA_RETENTION_KEEP_WEEKLY", "4")
+	t.Setenv("CONBA_RETENTION_KEEP_MONTHLY", "6")
+	t.Setenv("CONBA_RETENTION_KEEP_YEARLY", "2")
+
+	cfg, err := config.Load("")
+	if err != nil {
+		t.Fatalf("Load() returned unexpected error: %v", err)
+	}
+
+	if cfg.Retention.KeepDaily != 7 {
+		t.Errorf("Retention.KeepDaily = %d, want %d", cfg.Retention.KeepDaily, 7)
+	}
+
+	if cfg.Retention.KeepWeekly != 4 {
+		t.Errorf("Retention.KeepWeekly = %d, want %d", cfg.Retention.KeepWeekly, 4)
+	}
+
+	if cfg.Retention.KeepMonthly != 6 {
+		t.Errorf("Retention.KeepMonthly = %d, want %d", cfg.Retention.KeepMonthly, 6)
+	}
+
+	if cfg.Retention.KeepYearly != 2 {
+		t.Errorf("Retention.KeepYearly = %d, want %d", cfg.Retention.KeepYearly, 2)
+	}
+}
+
+func TestLoad_ResticFromEnv(t *testing.T) {
+	t.Setenv("CONBA_RESTIC_REPOSITORY", "/tmp/probe-repo")
+	t.Setenv("CONBA_RESTIC_PASSWORD", "probe-password")
+	t.Setenv("CONBA_RESTIC_PASSWORD_FILE", "/etc/probe-pwfile")
+
+	cfg, err := config.Load("")
+	if err != nil {
+		t.Fatalf("Load() returned unexpected error: %v", err)
+	}
+
+	if cfg.Restic.Repository != "/tmp/probe-repo" {
+		t.Errorf("Restic.Repository = %q, want %q",
+			cfg.Restic.Repository, "/tmp/probe-repo")
+	}
+
+	if cfg.Restic.Password != "probe-password" {
+		t.Errorf("Restic.Password = %q, want %q",
+			cfg.Restic.Password, "probe-password")
+	}
+
+	if cfg.Restic.PasswordFile != "/etc/probe-pwfile" {
+		t.Errorf("Restic.PasswordFile = %q, want %q",
+			cfg.Restic.PasswordFile, "/etc/probe-pwfile")
+	}
+}
+
+func TestLoad_EmptyRetentionDoesNotFail(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		yaml string
+	}{
+		{
+			name: "no retention block",
+			yaml: "logging:\n  level: info\n  format: human\n",
+		},
+		{
+			name: "empty retention block",
+			yaml: "retention: {}\n",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			dir := t.TempDir()
+			cfgFile := filepath.Join(dir, "conba.yaml")
+
+			writeErr := os.WriteFile(cfgFile, []byte(test.yaml), 0o600)
+			if writeErr != nil {
+				t.Fatalf("failed to write temp config: %v", writeErr)
+			}
+
+			cfg, err := config.Load(cfgFile)
+			if err != nil {
+				t.Fatalf("Load() returned unexpected error: %v", err)
+			}
+
+			want := config.RetentionConfig{
+				KeepDaily:   0,
+				KeepWeekly:  0,
+				KeepMonthly: 0,
+				KeepYearly:  0,
+			}
+
+			if cfg.Retention != want {
+				t.Errorf("Retention = %+v, want %+v", cfg.Retention, want)
+			}
+		})
 	}
 }

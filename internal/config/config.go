@@ -65,6 +65,26 @@ type Config struct {
 	Runtime   RuntimeConfig   `mapstructure:"runtime"`
 	Discovery DiscoveryConfig `mapstructure:"discovery"`
 	Restic    ResticConfig    `mapstructure:"restic"`
+	Retention RetentionConfig `mapstructure:"retention"`
+}
+
+// RetentionConfig holds snapshot retention policy fields.
+// Each field defaults to zero (no retention dimension).
+type RetentionConfig struct {
+	KeepDaily   int `mapstructure:"keep_daily"`
+	KeepWeekly  int `mapstructure:"keep_weekly"`
+	KeepMonthly int `mapstructure:"keep_monthly"`
+	KeepYearly  int `mapstructure:"keep_yearly"`
+}
+
+// IsEmpty reports whether no retention dimension is configured. An empty
+// policy means the caller has expressed no retention rules at all and
+// callers should treat this as "no policy" rather than "keep zero of each".
+func (r RetentionConfig) IsEmpty() bool {
+	return r.KeepDaily == 0 &&
+		r.KeepWeekly == 0 &&
+		r.KeepMonthly == 0 &&
+		r.KeepYearly == 0
 }
 
 // ResticConfig holds restic repository and authentication configuration.
@@ -193,6 +213,11 @@ func readConfigFile(viperInstance *viper.Viper, cfgFile string) error {
 	return nil
 }
 
+// setDefaults registers default values for every config key. Keys that
+// have no meaningful default still get a zero value here so viper's
+// AutomaticEnv knows the key exists and can populate it from CONBA_*
+// env vars during Unmarshal. Without a registered key, env-only loading
+// silently leaves the field empty.
 func setDefaults(viperInstance *viper.Viper) {
 	viperInstance.SetDefault("logging.level", LogLevelInfo)
 	viperInstance.SetDefault("logging.format", LogFormatHuman)
@@ -200,6 +225,13 @@ func setDefaults(viperInstance *viper.Viper) {
 	viperInstance.SetDefault("runtime.docker.host", DefaultDockerHost)
 	viperInstance.SetDefault("discovery.opt_in_only", false)
 	viperInstance.SetDefault("restic.binary", DefaultResticBinary)
+	viperInstance.SetDefault("restic.repository", "")
+	viperInstance.SetDefault("restic.password", "")
+	viperInstance.SetDefault("restic.password_file", "")
+	viperInstance.SetDefault("retention.keep_daily", 0)
+	viperInstance.SetDefault("retention.keep_weekly", 0)
+	viperInstance.SetDefault("retention.keep_monthly", 0)
+	viperInstance.SetDefault("retention.keep_yearly", 0)
 }
 
 func (c *Config) validate() error {
