@@ -137,5 +137,5 @@ func Resolve(
 		return global, ResolutionGlobal, nil
 	}
 
-	return config.RetentionConfig{}, ResolutionNone, nil //nolint:exhaustruct
+	return global, ResolutionNone, nil
 }
