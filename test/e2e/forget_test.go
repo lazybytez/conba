@@ -124,8 +124,8 @@ func TestForget_DryRun_NoChange(t *testing.T) {
 
 // TestForget_HostScoping_DoesNotTouchOtherHosts verifies that the default
 // host-scoping behaviour leaves snapshots tagged for foreign hostnames
-// untouched. Two foreign snapshots are seeded under hostname=other-host
-// using the SAME container/volume tags as a real discovered target so the
+// untouched. Two foreign snapshots are seeded under foreignHostname using
+// the SAME container/volume tags as a real discovered target so the
 // scoping check is meaningful: without --all-hosts, both foreign snapshots
 // must survive even when the global retention policy would otherwise
 // collapse them.
@@ -153,17 +153,17 @@ func TestForget_HostScoping_DoesNotTouchOtherHosts(t *testing.T) {
 	foreignTags := []string{
 		"container=" + containerApp,
 		"volume=conba-e2e_conba-e2e-app-data",
-		"hostname=other-host",
+		"hostname=" + foreignHostname,
 	}
 
-	backupAsHost(t, repoPath, "other-host", foreignSource, foreignTags)
-	backupAsHost(t, repoPath, "other-host", foreignSource, foreignTags)
+	backupAsForeignHost(t, repoPath, foreignSource, foreignTags)
+	backupAsForeignHost(t, repoPath, foreignSource, foreignTags)
 
 	requireSuccess(t, runConba(t, cfg, "forget"), "conba forget")
 
 	snaps := resticSnapshots(t, repoPath)
 
-	foreignSurvivors := snapshotsByHostname(snaps, "other-host")
+	foreignSurvivors := snapshotsByHostname(snaps, foreignHostname)
 	if len(foreignSurvivors) != 2 {
 		t.Fatalf(
 			"expected both foreign-host snapshots to survive default forget "+
@@ -204,15 +204,15 @@ func TestForget_AllHosts_AffectsForeignSnapshots(t *testing.T) {
 	foreignTags := []string{
 		"container=" + containerApp,
 		"volume=conba-e2e_conba-e2e-app-data",
-		"hostname=other-host",
+		"hostname=" + foreignHostname,
 	}
 
-	backupAsHost(t, repoPath, "other-host", foreignSource, foreignTags)
-	backupAsHost(t, repoPath, "other-host", foreignSource, foreignTags)
+	backupAsForeignHost(t, repoPath, foreignSource, foreignTags)
+	backupAsForeignHost(t, repoPath, foreignSource, foreignTags)
 
 	beforeSnaps := resticSnapshots(t, repoPath)
 
-	beforeForeign := snapshotsByHostname(beforeSnaps, "other-host")
+	beforeForeign := snapshotsByHostname(beforeSnaps, foreignHostname)
 	if len(beforeForeign) != 2 {
 		t.Fatalf(
 			"setup precondition: expected 2 foreign snapshots before forget; got %d (%v)",
@@ -225,7 +225,7 @@ func TestForget_AllHosts_AffectsForeignSnapshots(t *testing.T) {
 
 	afterSnaps := resticSnapshots(t, repoPath)
 
-	afterForeign := snapshotsByHostname(afterSnaps, "other-host")
+	afterForeign := snapshotsByHostname(afterSnaps, foreignHostname)
 	if len(afterForeign) != 1 {
 		t.Fatalf(
 			"expected exactly 1 foreign snapshot after --all-hosts forget "+
@@ -313,8 +313,8 @@ func describeSnapshots(snaps []ResticSnapshot) []string {
 }
 
 // writeForeignSource creates a temporary source file whose contents include
-// suffix so that successive backupAsHost calls on the same path produce
-// distinct deduplication-resistant snapshots when needed.
+// suffix so that successive backupAsForeignHost calls on the same path
+// produce distinct deduplication-resistant snapshots when needed.
 func writeForeignSource(t *testing.T, suffix string) string {
 	t.Helper()
 

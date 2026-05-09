@@ -41,6 +41,11 @@ const (
 
 	conbaCommandTimeout  = 30 * time.Second
 	dockerCommandTimeout = 15 * time.Second
+
+	// foreignHostname is the hostname used for snapshots seeded outside
+	// the conba host scope, so forget host-scoping tests can assert
+	// whether they survive (default) or get reduced (--all-hosts).
+	foreignHostname = "other-host"
 )
 
 // defaultIncludeNamePatterns pins container discovery to the e2e fixture
@@ -416,15 +421,15 @@ func runRestic(t *testing.T, repoPath string, args ...string) (string, string, e
 	return stdout.String(), stderr.String(), runErr
 }
 
-// backupAsHost writes a snapshot to repoPath via direct restic invocation
-// using --host hostname plus the supplied tags. sourcePath is backed up
-// as-is. Used to seed foreign-host snapshots that the conba forget loop
-// must respect (or affect, with --all-hosts) for host-scoping tests.
-func backupAsHost(t *testing.T, repoPath, hostname, sourcePath string, tags []string) {
+// backupAsForeignHost writes a snapshot to repoPath via direct restic
+// invocation under foreignHostname plus the supplied tags. Used to seed
+// foreign-host snapshots that the conba forget loop must respect
+// (default) or affect (with --all-hosts) in host-scoping tests.
+func backupAsForeignHost(t *testing.T, repoPath, sourcePath string, tags []string) {
 	t.Helper()
 
 	args := make([]string, 0, 3+2*len(tags)+1)
-	args = append(args, "backup", "--host", hostname)
+	args = append(args, "backup", "--host", foreignHostname)
 
 	for _, tag := range tags {
 		args = append(args, "--tag", tag)
@@ -435,7 +440,7 @@ func backupAsHost(t *testing.T, repoPath, hostname, sourcePath string, tags []st
 	_, stderr, err := runRestic(t, repoPath, args...)
 	if err != nil {
 		t.Fatalf("restic backup --host %s %s: %v: %s",
-			hostname, sourcePath, err, strings.TrimSpace(stderr))
+			foreignHostname, sourcePath, err, strings.TrimSpace(stderr))
 	}
 }
 

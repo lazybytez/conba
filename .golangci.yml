@@ -55,13 +55,6 @@ linters:
           - exhaustruct
         path: ^test/e2e/
         text: "e2e_test\\.configOpts|config\\.RetentionConfig"
-      # backupAsHost is a generic seeding helper; the current suite only
-      # exercises one hostname value but the parameter shape is part of the
-      # helper's contract for future foreign-host scenarios.
-      - linters:
-          - unparam
-        path: ^test/e2e/helpers_test\.go
-        text: "backupAsHost"
 
 formatters:
   enable:
