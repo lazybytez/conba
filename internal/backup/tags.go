@@ -8,7 +8,7 @@ import (
 
 // Restic tag prefixes used by conba. Backup writes them; forget and
 // snapshots commands read them. Defining them here keeps producers and
-// consumers in lockstep — change the schema in one place.
+// consumers in lockstep: change the schema in one place.
 const (
 	ContainerTagPrefix = "container="
 	VolumeTagPrefix    = "volume="

@@ -216,7 +216,7 @@ func readConfigFile(viperInstance *viper.Viper, cfgFile string) error {
 // setDefaults registers default values for every config key. Keys that
 // have no meaningful default still get a zero value here so viper's
 // AutomaticEnv knows the key exists and can populate it from CONBA_*
-// env vars during Unmarshal — without a registered key, env-only loading
+// env vars during Unmarshal. Without a registered key, env-only loading
 // silently leaves the field empty.
 func setDefaults(viperInstance *viper.Viper) {
 	viperInstance.SetDefault("logging.level", LogLevelInfo)

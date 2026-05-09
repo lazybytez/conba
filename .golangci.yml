@@ -48,7 +48,7 @@ linters:
         path: ^test/e2e/
         text: "G204:|G304:|G703:"
       # configOpts and RetentionConfig are scenario-driven test config
-      # structs where partial initialisation is the design — every test
+      # structs where partial initialisation is the design. Every test
       # exercises a specific subset of fields and the zero value is
       # meaningful for the rest.
       - linters:
