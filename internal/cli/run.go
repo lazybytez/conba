@@ -9,13 +9,19 @@ import (
 	"github.com/lazybytez/conba/internal/backup"
 	"github.com/lazybytez/conba/internal/config"
 	"github.com/lazybytez/conba/internal/discovery"
-	"github.com/lazybytez/conba/internal/filter"
 	"github.com/lazybytez/conba/internal/forget"
 	"github.com/lazybytez/conba/internal/logging"
 	"github.com/lazybytez/conba/internal/restic"
 	"github.com/spf13/cobra"
-	"go.uber.org/zap"
+	"github.com/spf13/pflag"
 )
+
+// runFlags holds the CLI-provided flags for the run command.
+type runFlags struct {
+	dryRun   bool
+	allHosts bool
+	noForget bool
+}
 
 // NewRunCommand creates the run subcommand that executes the standard
 // backup cycle in sequence: init, backup, forget. It is intended for
@@ -47,9 +53,7 @@ func runRun(cmd *cobra.Command, _ []string) error {
 		return errMissingConfig
 	}
 
-	dryRun, _ := cmd.Flags().GetBool("dry-run")
-	allHosts, _ := cmd.Flags().GetBool("all-hosts")
-	noForget, _ := cmd.Flags().GetBool("no-forget")
+	flags := readRunFlags(cmd.Flags())
 
 	client, err := restic.New(cfg.Restic, logger)
 	if err != nil {
@@ -68,18 +72,41 @@ func runRun(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	targets, cleanup, err := runBackupPhase(ctx, out, cfg, logger, client, hostname, dryRun)
+	targets, cleanup, err := discoverFiltered(ctx, cfg, logger)
 	if err != nil {
 		return err
 	}
 
 	defer cleanup()
 
-	if noForget {
+	if len(targets) == 0 {
+		_, writeErr := fmt.Fprintln(out,
+			"No volumes discovered; nothing to back up or forget.")
+		if writeErr != nil {
+			return fmt.Errorf("writing output: %w", writeErr)
+		}
+
 		return nil
 	}
 
-	return runForgetPhase(ctx, out, cfg, client, hostname, targets, allHosts, dryRun)
+	err = runBackupPhase(ctx, out, client, hostname, targets, flags.dryRun)
+	if err != nil {
+		return err
+	}
+
+	if flags.noForget {
+		return nil
+	}
+
+	return runForgetPhase(ctx, out, cfg, client, hostname, targets, flags)
+}
+
+func readRunFlags(flags *pflag.FlagSet) runFlags {
+	return runFlags{
+		dryRun:   flagBool(flags, "dry-run"),
+		allHosts: flagBool(flags, "all-hosts"),
+		noForget: flagBool(flags, "no-forget"),
+	}
 }
 
 func runInitPhase(ctx context.Context, out io.Writer, client *restic.Client) error {
@@ -101,68 +128,29 @@ func runInitPhase(ctx context.Context, out io.Writer, client *restic.Client) err
 	return nil
 }
 
-// runBackupPhase prints the backup header, opens the docker connection,
-// discovers and filters targets, and runs the backup. The returned
-// cleanup func closes the docker client and is always non-nil so the
-// caller can defer it unconditionally.
 func runBackupPhase(
 	ctx context.Context,
 	out io.Writer,
-	cfg *config.Config,
-	logger *zap.Logger,
 	client *restic.Client,
 	hostname string,
+	targets []discovery.Target,
 	dryRun bool,
-) ([]discovery.Target, func(), error) {
+) error {
 	err := writePhaseHeader(out, "backup")
 	if err != nil {
-		return nil, func() {}, err
-	}
-
-	runtime, cleanup, err := connectDockerForForget(ctx, cfg, logger)
-	if err != nil {
-		return nil, func() {}, err
-	}
-
-	targets, err := discovery.Discover(ctx, runtime)
-	if err != nil {
-		cleanup()
-
-		return nil, func() {}, fmt.Errorf("discover volumes: %w", err)
-	}
-
-	result := filter.Apply(targets, cfg.Discovery)
-
-	if len(result.Included) == 0 {
-		_, writeErr := fmt.Fprintln(out, "No volumes to back up.")
-		if writeErr != nil {
-			cleanup()
-
-			return nil, func() {}, fmt.Errorf("writing output: %w", writeErr)
-		}
-
-		return nil, cleanup, nil
+		return err
 	}
 
 	if dryRun {
-		err = printDryRun(out, result.Included)
-		if err != nil {
-			cleanup()
-
-			return nil, func() {}, err
-		}
-
-		return result.Included, cleanup, nil
+		return printDryRun(out, targets)
 	}
 
-	err = backup.Run(ctx, result.Included, client.Backup, hostname, out)
+	err = backup.Run(ctx, targets, client.Backup, hostname, out)
 	if err != nil {
-		cleanup()
-
-		return nil, func() {}, fmt.Errorf("run backup: %w", err)
+		return fmt.Errorf("run backup: %w", err)
 	}
 
-	return result.Included, cleanup, nil
+	return nil
 }
 
 func runForgetPhase(
@@ -172,27 +160,17 @@ func runForgetPhase(
 	client *restic.Client,
 	hostname string,
 	targets []discovery.Target,
-	allHosts bool,
-	dryRun bool,
+	flags runFlags,
 ) error {
 	err := writePhaseHeader(out, "forget")
 	if err != nil {
 		return err
 	}
 
-	if len(targets) == 0 {
-		_, writeErr := fmt.Fprintln(out, "No volumes to forget.")
-		if writeErr != nil {
-			return fmt.Errorf("writing output: %w", writeErr)
-		}
-
-		return nil
-	}
-
 	opts := forget.Options{
 		Hostname: hostname,
-		AllHosts: allHosts,
-		DryRun:   dryRun,
+		AllHosts: flags.allHosts,
+		DryRun:   flags.dryRun,
 		Prune:    true,
 	}
 

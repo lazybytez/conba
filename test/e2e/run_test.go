@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/lazybytez/conba/internal/config"
 )
 
 // TestRun_FreshRepo_FullCycle verifies that `conba run` against a non-existent
@@ -27,7 +25,7 @@ func TestRun_FreshRepo_FullCycle(t *testing.T) {
 		IncludeNames:        nil,
 		IncludeNamePatterns: nil,
 		ExcludeNames:        nil,
-		Retention:           config.RetentionConfig{KeepDaily: 1},
+		Retention:           retentionKeepOneDaily,
 	})
 
 	cfg := runConfig{Dir: dir, Stdin: nil, Env: nil}
@@ -72,7 +70,7 @@ func TestRun_AlreadyInitialized_Idempotent(t *testing.T) {
 		IncludeNames:        nil,
 		IncludeNamePatterns: nil,
 		ExcludeNames:        nil,
-		Retention:           config.RetentionConfig{KeepDaily: 1},
+		Retention:           retentionKeepOneDaily,
 	})
 
 	cfg := runConfig{Dir: dir, Stdin: nil, Env: nil}
@@ -109,7 +107,7 @@ func TestRun_NoForget_SkipsForgetPhase(t *testing.T) {
 		IncludeNames:        nil,
 		IncludeNamePatterns: nil,
 		ExcludeNames:        nil,
-		Retention:           config.RetentionConfig{KeepDaily: 1},
+		Retention:           retentionKeepOneDaily,
 	})
 
 	cfg := runConfig{Dir: dir, Stdin: nil, Env: nil}

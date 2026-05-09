@@ -9,7 +9,6 @@ import (
 	"github.com/lazybytez/conba/internal/backup"
 	"github.com/lazybytez/conba/internal/config"
 	"github.com/lazybytez/conba/internal/discovery"
-	"github.com/lazybytez/conba/internal/filter"
 	"github.com/lazybytez/conba/internal/logging"
 	"github.com/lazybytez/conba/internal/restic"
 	"github.com/spf13/cobra"
@@ -41,21 +40,14 @@ func runBackup(cmd *cobra.Command, _ []string) error {
 
 	dryRun, _ := cmd.Flags().GetBool("dry-run")
 
-	runtime, cleanup, err := connectDocker(ctx, cfg, logger)
+	targets, cleanup, err := discoverFiltered(ctx, cfg, logger)
 	if err != nil {
 		return err
 	}
 
 	defer cleanup()
 
-	targets, err := discovery.Discover(ctx, runtime)
-	if err != nil {
-		return fmt.Errorf("discover volumes: %w", err)
-	}
-
-	result := filter.Apply(targets, cfg.Discovery)
-
-	if len(result.Included) == 0 {
+	if len(targets) == 0 {
 		_, writeErr := fmt.Fprintln(cmd.OutOrStdout(), "No volumes to back up.")
 		if writeErr != nil {
 			return fmt.Errorf("writing output: %w", writeErr)
@@ -65,10 +57,10 @@ func runBackup(cmd *cobra.Command, _ []string) error {
 	}
 
 	if dryRun {
-		return printDryRun(cmd.OutOrStdout(), result.Included)
+		return printDryRun(cmd.OutOrStdout(), targets)
 	}
 
-	return executeBackup(cmd, cfg, logger, result.Included)
+	return executeBackup(cmd, cfg, logger, targets)
 }
 
 func executeBackup(

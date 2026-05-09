@@ -7,8 +7,6 @@ import (
 
 	"github.com/lazybytez/conba/internal/backup"
 	"github.com/lazybytez/conba/internal/config"
-	"github.com/lazybytez/conba/internal/discovery"
-	"github.com/lazybytez/conba/internal/filter"
 	"github.com/lazybytez/conba/internal/forget"
 	"github.com/lazybytez/conba/internal/logging"
 	"github.com/lazybytez/conba/internal/restic"
@@ -175,21 +173,14 @@ func buildSurgicalTags(flags forgetFlags, hostname string) []string {
 func runForgetDiscovery(req forgetRequest) error {
 	ctx := req.cmd.Context()
 
-	runtime, cleanup, err := connectDocker(ctx, req.cfg, req.logger)
+	targets, cleanup, err := discoverFiltered(ctx, req.cfg, req.logger)
 	if err != nil {
 		return err
 	}
 
 	defer cleanup()
 
-	targets, err := discovery.Discover(ctx, runtime)
-	if err != nil {
-		return fmt.Errorf("discover volumes: %w", err)
-	}
-
-	result := filter.Apply(targets, req.cfg.Discovery)
-
-	if len(result.Included) == 0 {
+	if len(targets) == 0 {
 		_, writeErr := fmt.Fprintln(req.cmd.OutOrStdout(), "No volumes to forget.")
 		if writeErr != nil {
 			return fmt.Errorf("writing output: %w", writeErr)
@@ -207,7 +198,7 @@ func runForgetDiscovery(req forgetRequest) error {
 
 	err = forget.Run(
 		ctx,
-		result.Included,
+		targets,
 		req.client.Forget,
 		req.cfg.Retention,
 		opts,
