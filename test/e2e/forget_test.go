@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/lazybytez/conba/internal/config"
 )
 
 // TestForget_GlobalRetention_AppliesToAllContainers verifies that with a
@@ -27,7 +25,7 @@ func TestForget_GlobalRetention_AppliesToAllContainers(t *testing.T) {
 		IncludeNames:        nil,
 		IncludeNamePatterns: nil,
 		ExcludeNames:        nil,
-		Retention:           config.RetentionConfig{KeepDaily: 1},
+		Retention:           retentionKeepOneDaily,
 	})
 
 	cfg := runConfig{Dir: dir, Stdin: nil, Env: nil}
@@ -95,7 +93,7 @@ func TestForget_DryRun_NoChange(t *testing.T) {
 		IncludeNames:        nil,
 		IncludeNamePatterns: nil,
 		ExcludeNames:        nil,
-		Retention:           config.RetentionConfig{KeepDaily: 1},
+		Retention:           retentionKeepOneDaily,
 	})
 
 	cfg := runConfig{Dir: dir, Stdin: nil, Env: nil}
@@ -141,7 +139,7 @@ func TestForget_HostScoping_DoesNotTouchOtherHosts(t *testing.T) {
 		IncludeNames:        nil,
 		IncludeNamePatterns: nil,
 		ExcludeNames:        nil,
-		Retention:           config.RetentionConfig{KeepDaily: 1},
+		Retention:           retentionKeepOneDaily,
 	})
 
 	cfg := runConfig{Dir: dir, Stdin: nil, Env: nil}
@@ -192,7 +190,7 @@ func TestForget_AllHosts_AffectsForeignSnapshots(t *testing.T) {
 		IncludeNames:        nil,
 		IncludeNamePatterns: nil,
 		ExcludeNames:        nil,
-		Retention:           config.RetentionConfig{KeepDaily: 1},
+		Retention:           retentionKeepOneDaily,
 	})
 
 	cfg := runConfig{Dir: dir, Stdin: nil, Env: nil}
@@ -252,7 +250,7 @@ func TestForget_Surgical_ContainerFlag(t *testing.T) {
 		IncludeNames:        nil,
 		IncludeNamePatterns: nil,
 		ExcludeNames:        nil,
-		Retention:           config.RetentionConfig{KeepDaily: 1},
+		Retention:           retentionKeepOneDaily,
 	})
 
 	cfg := runConfig{Dir: dir, Stdin: nil, Env: nil}

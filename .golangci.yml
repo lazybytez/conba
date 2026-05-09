@@ -11,6 +11,9 @@ linters:
       exclude:
         - "github.com/spf13/cobra\\.Command"
         - "github.com/docker/docker/api/types/container\\.ListOptions"
+        # configOpts is the e2e scenario struct: partial init is the design,
+        # zero values fall back to defaults inside writeConfig.
+        - "github.com/lazybytez/conba/test/e2e_test\\.configOpts"
     tagliatelle:
       case:
         rules:
@@ -47,14 +50,6 @@ linters:
           - gosec
         path: ^test/e2e/
         text: "G204:|G304:|G703:"
-      # configOpts and RetentionConfig are scenario-driven test config
-      # structs where partial initialisation is the design. Every test
-      # exercises a specific subset of fields and the zero value is
-      # meaningful for the rest.
-      - linters:
-          - exhaustruct
-        path: ^test/e2e/
-        text: "e2e_test\\.configOpts|config\\.RetentionConfig"
 
 formatters:
   enable:

@@ -134,6 +134,16 @@ type configOpts struct {
 	Retention           config.RetentionConfig
 }
 
+// retentionKeepOneDaily is the only retention shape the forget e2e
+// suite needs today. Declared once with all dimensions explicit so
+// exhaustruct is satisfied without per-site partial literals.
+var retentionKeepOneDaily = config.RetentionConfig{
+	KeepDaily:   1,
+	KeepWeekly:  0,
+	KeepMonthly: 0,
+	KeepYearly:  0,
+}
+
 // configTemplate is the minimal YAML accepted by config.Load. Field names
 // must match the `mapstructure` tags on the Config struct.
 const configTemplate = `logging:
