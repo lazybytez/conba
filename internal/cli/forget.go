@@ -189,12 +189,12 @@ func runForgetDiscovery(req forgetRequest) error {
 		return nil
 	}
 
-	opts := forget.Options{
-		Hostname: req.hostname,
-		AllHosts: req.flags.allHosts,
-		DryRun:   req.flags.dryRun,
-		Prune:    !req.flags.noPrune,
-	}
+	opts := buildForgetOptions(
+		req.hostname,
+		req.flags.allHosts,
+		req.flags.dryRun,
+		!req.flags.noPrune,
+	)
 
 	err = forget.Run(
 		ctx,

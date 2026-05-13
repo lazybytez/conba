@@ -8,6 +8,7 @@ import (
 	"github.com/lazybytez/conba/internal/config"
 	"github.com/lazybytez/conba/internal/discovery"
 	"github.com/lazybytez/conba/internal/filter"
+	"github.com/lazybytez/conba/internal/forget"
 	"github.com/lazybytez/conba/internal/runtime/docker"
 	"go.uber.org/zap"
 )
@@ -64,4 +65,15 @@ func discoverFiltered(
 	}
 
 	return filter.Apply(targets, cfg.Discovery).Included, cleanup, nil
+}
+
+// buildForgetOptions assembles the forget.Options literal shared by the
+// run and forget commands.
+func buildForgetOptions(hostname string, allHosts, dryRun, prune bool) forget.Options {
+	return forget.Options{
+		Hostname: hostname,
+		AllHosts: allHosts,
+		DryRun:   dryRun,
+		Prune:    prune,
+	}
 }

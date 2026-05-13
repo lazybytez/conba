@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"os"
@@ -14,6 +13,7 @@ import (
 	"github.com/lazybytez/conba/internal/restic"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"go.uber.org/zap"
 )
 
 // runFlags holds the CLI-provided flags for the run command.
@@ -21,6 +21,17 @@ type runFlags struct {
 	dryRun   bool
 	allHosts bool
 	noForget bool
+}
+
+// runRequest bundles the dependencies and inputs shared by the
+// run command's phase helpers.
+type runRequest struct {
+	cmd      *cobra.Command
+	cfg      *config.Config
+	logger   *zap.Logger
+	client   *restic.Client
+	hostname string
+	flags    runFlags
 }
 
 // NewRunCommand creates the run subcommand that executes the standard
@@ -45,34 +56,17 @@ func NewRunCommand() *cobra.Command {
 }
 
 func runRun(cmd *cobra.Command, _ []string) error {
-	ctx := cmd.Context()
-	cfg := config.FromContext(ctx)
-	logger := logging.FromContext(ctx)
-
-	if cfg == nil {
-		return errMissingConfig
-	}
-
-	flags := readRunFlags(cmd.Flags())
-
-	client, err := restic.New(cfg.Restic, logger)
-	if err != nil {
-		return fmt.Errorf("create restic client: %w", err)
-	}
-
-	hostname, err := os.Hostname()
-	if err != nil {
-		return fmt.Errorf("get hostname: %w", err)
-	}
-
-	out := cmd.OutOrStdout()
-
-	err = runInitPhase(ctx, out, client)
+	req, err := buildRunRequest(cmd)
 	if err != nil {
 		return err
 	}
 
-	targets, cleanup, err := discoverFiltered(ctx, cfg, logger)
+	err = runInitPhase(*req)
+	if err != nil {
+		return err
+	}
+
+	targets, cleanup, err := discoverFiltered(req.cmd.Context(), req.cfg, req.logger)
 	if err != nil {
 		return err
 	}
@@ -80,7 +74,7 @@ func runRun(cmd *cobra.Command, _ []string) error {
 	defer cleanup()
 
 	if len(targets) == 0 {
-		_, writeErr := fmt.Fprintln(out,
+		_, writeErr := fmt.Fprintln(req.cmd.OutOrStdout(),
 			"No volumes discovered; nothing to back up or forget.")
 		if writeErr != nil {
 			return fmt.Errorf("writing output: %w", writeErr)
@@ -89,16 +83,47 @@ func runRun(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	err = runBackupPhase(ctx, out, client, hostname, targets, flags.dryRun)
+	err = runBackupPhase(*req, targets)
 	if err != nil {
 		return err
 	}
 
-	if flags.noForget {
+	if req.flags.noForget {
 		return nil
 	}
 
-	return runForgetPhase(ctx, out, cfg, client, hostname, targets, flags)
+	return runForgetPhase(*req, targets)
+}
+
+func buildRunRequest(cmd *cobra.Command) (*runRequest, error) {
+	ctx := cmd.Context()
+	cfg := config.FromContext(ctx)
+	logger := logging.FromContext(ctx)
+
+	if cfg == nil {
+		return nil, errMissingConfig
+	}
+
+	flags := readRunFlags(cmd.Flags())
+
+	client, err := restic.New(cfg.Restic, logger)
+	if err != nil {
+		return nil, fmt.Errorf("create restic client: %w", err)
+	}
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		return nil, fmt.Errorf("get hostname: %w", err)
+	}
+
+	return &runRequest{
+		cmd:      cmd,
+		cfg:      cfg,
+		logger:   logger,
+		client:   client,
+		hostname: hostname,
+		flags:    flags,
+	}, nil
 }
 
 func readRunFlags(flags *pflag.FlagSet) runFlags {
@@ -109,13 +134,15 @@ func readRunFlags(flags *pflag.FlagSet) runFlags {
 	}
 }
 
-func runInitPhase(ctx context.Context, out io.Writer, client *restic.Client) error {
+func runInitPhase(req runRequest) error {
+	out := req.cmd.OutOrStdout()
+
 	err := writePhaseHeader(out, "init")
 	if err != nil {
 		return err
 	}
 
-	err = client.Init(ctx)
+	err = req.client.Init(req.cmd.Context())
 	if err != nil {
 		return fmt.Errorf("run init: %w", err)
 	}
@@ -128,24 +155,19 @@ func runInitPhase(ctx context.Context, out io.Writer, client *restic.Client) err
 	return nil
 }
 
-func runBackupPhase(
-	ctx context.Context,
-	out io.Writer,
-	client *restic.Client,
-	hostname string,
-	targets []discovery.Target,
-	dryRun bool,
-) error {
+func runBackupPhase(req runRequest, targets []discovery.Target) error {
+	out := req.cmd.OutOrStdout()
+
 	err := writePhaseHeader(out, "backup")
 	if err != nil {
 		return err
 	}
 
-	if dryRun {
+	if req.flags.dryRun {
 		return printDryRun(out, targets)
 	}
 
-	err = backup.Run(ctx, targets, client.Backup, hostname, out)
+	err = backup.Run(req.cmd.Context(), targets, req.client.Backup, req.hostname, out)
 	if err != nil {
 		return fmt.Errorf("run backup: %w", err)
 	}
@@ -153,28 +175,17 @@ func runBackupPhase(
 	return nil
 }
 
-func runForgetPhase(
-	ctx context.Context,
-	out io.Writer,
-	cfg *config.Config,
-	client *restic.Client,
-	hostname string,
-	targets []discovery.Target,
-	flags runFlags,
-) error {
+func runForgetPhase(req runRequest, targets []discovery.Target) error {
+	out := req.cmd.OutOrStdout()
+
 	err := writePhaseHeader(out, "forget")
 	if err != nil {
 		return err
 	}
 
-	opts := forget.Options{
-		Hostname: hostname,
-		AllHosts: flags.allHosts,
-		DryRun:   flags.dryRun,
-		Prune:    true,
-	}
+	opts := buildForgetOptions(req.hostname, req.flags.allHosts, req.flags.dryRun, true)
 
-	err = forget.Run(ctx, targets, client.Forget, cfg.Retention, opts, out)
+	err = forget.Run(req.cmd.Context(), targets, req.client.Forget, req.cfg.Retention, opts, out)
 	if err != nil {
 		return fmt.Errorf("run forget: %w", err)
 	}
