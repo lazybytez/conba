@@ -95,7 +95,7 @@ func runForget(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("get hostname: %w", err)
 	}
 
-	req := forgetRequest{
+	req := &forgetRequest{
 		cmd:      cmd,
 		cfg:      cfg,
 		logger:   logger,
@@ -123,7 +123,7 @@ func readForgetFlags(flags *pflag.FlagSet) forgetFlags {
 	}
 }
 
-func runForgetSurgical(req forgetRequest) error {
+func runForgetSurgical(req *forgetRequest) error {
 	if req.cfg.Retention.IsEmpty() {
 		return errEmptyGlobalRetention
 	}
@@ -170,7 +170,7 @@ func buildSurgicalTags(flags forgetFlags, hostname string) []string {
 	return tags
 }
 
-func runForgetDiscovery(req forgetRequest) error {
+func runForgetDiscovery(req *forgetRequest) error {
 	ctx := req.cmd.Context()
 
 	targets, cleanup, err := discoverFiltered(ctx, req.cfg, req.logger)

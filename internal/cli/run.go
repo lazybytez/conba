@@ -61,7 +61,7 @@ func runRun(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	err = runInitPhase(*req)
+	err = runInitPhase(req)
 	if err != nil {
 		return err
 	}
@@ -83,7 +83,7 @@ func runRun(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	err = runBackupPhase(*req, targets)
+	err = runBackupPhase(req, targets)
 	if err != nil {
 		return err
 	}
@@ -92,7 +92,7 @@ func runRun(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	return runForgetPhase(*req, targets)
+	return runForgetPhase(req, targets)
 }
 
 func buildRunRequest(cmd *cobra.Command) (*runRequest, error) {
@@ -134,7 +134,7 @@ func readRunFlags(flags *pflag.FlagSet) runFlags {
 	}
 }
 
-func runInitPhase(req runRequest) error {
+func runInitPhase(req *runRequest) error {
 	out := req.cmd.OutOrStdout()
 
 	err := writePhaseHeader(out, "init")
@@ -155,7 +155,7 @@ func runInitPhase(req runRequest) error {
 	return nil
 }
 
-func runBackupPhase(req runRequest, targets []discovery.Target) error {
+func runBackupPhase(req *runRequest, targets []discovery.Target) error {
 	out := req.cmd.OutOrStdout()
 
 	err := writePhaseHeader(out, "backup")
@@ -175,7 +175,7 @@ func runBackupPhase(req runRequest, targets []discovery.Target) error {
 	return nil
 }
 
-func runForgetPhase(req runRequest, targets []discovery.Target) error {
+func runForgetPhase(req *runRequest, targets []discovery.Target) error {
 	out := req.cmd.OutOrStdout()
 
 	err := writePhaseHeader(out, "forget")
