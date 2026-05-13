@@ -7,8 +7,6 @@ import (
 
 	"github.com/lazybytez/conba/internal/backup"
 	"github.com/lazybytez/conba/internal/config"
-	"github.com/lazybytez/conba/internal/discovery"
-	"github.com/lazybytez/conba/internal/filter"
 	"github.com/lazybytez/conba/internal/forget"
 	"github.com/lazybytez/conba/internal/logging"
 	"github.com/lazybytez/conba/internal/restic"
@@ -97,7 +95,7 @@ func runForget(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("get hostname: %w", err)
 	}
 
-	req := forgetRequest{
+	req := &forgetRequest{
 		cmd:      cmd,
 		cfg:      cfg,
 		logger:   logger,
@@ -125,7 +123,7 @@ func readForgetFlags(flags *pflag.FlagSet) forgetFlags {
 	}
 }
 
-func runForgetSurgical(req forgetRequest) error {
+func runForgetSurgical(req *forgetRequest) error {
 	if req.cfg.Retention.IsEmpty() {
 		return errEmptyGlobalRetention
 	}
@@ -172,24 +170,17 @@ func buildSurgicalTags(flags forgetFlags, hostname string) []string {
 	return tags
 }
 
-func runForgetDiscovery(req forgetRequest) error {
+func runForgetDiscovery(req *forgetRequest) error {
 	ctx := req.cmd.Context()
 
-	runtime, cleanup, err := connectDocker(ctx, req.cfg, req.logger)
+	targets, cleanup, err := discoverFiltered(ctx, req.cfg, req.logger)
 	if err != nil {
 		return err
 	}
 
 	defer cleanup()
 
-	targets, err := discovery.Discover(ctx, runtime)
-	if err != nil {
-		return fmt.Errorf("discover volumes: %w", err)
-	}
-
-	result := filter.Apply(targets, req.cfg.Discovery)
-
-	if len(result.Included) == 0 {
+	if len(targets) == 0 {
 		_, writeErr := fmt.Fprintln(req.cmd.OutOrStdout(), "No volumes to forget.")
 		if writeErr != nil {
 			return fmt.Errorf("writing output: %w", writeErr)
@@ -198,16 +189,16 @@ func runForgetDiscovery(req forgetRequest) error {
 		return nil
 	}
 
-	opts := forget.Options{
-		Hostname: req.hostname,
-		AllHosts: req.flags.allHosts,
-		DryRun:   req.flags.dryRun,
-		Prune:    !req.flags.noPrune,
-	}
+	opts := buildForgetOptions(
+		req.hostname,
+		req.flags.allHosts,
+		req.flags.dryRun,
+		!req.flags.noPrune,
+	)
 
 	err = forget.Run(
 		ctx,
-		result.Included,
+		targets,
 		req.client.Forget,
 		req.cfg.Retention,
 		opts,

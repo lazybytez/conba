@@ -6,6 +6,9 @@ import (
 	"fmt"
 
 	"github.com/lazybytez/conba/internal/config"
+	"github.com/lazybytez/conba/internal/discovery"
+	"github.com/lazybytez/conba/internal/filter"
+	"github.com/lazybytez/conba/internal/forget"
 	"github.com/lazybytez/conba/internal/runtime/docker"
 	"go.uber.org/zap"
 )
@@ -37,4 +40,40 @@ func connectDocker(
 	}
 
 	return client, cleanup, nil
+}
+
+// discoverFiltered opens a Docker connection, lists containers and
+// volumes, and applies the configured discovery filter. It returns the
+// included targets together with the connection's cleanup func, which
+// the caller must defer. On error the docker connection is closed
+// before returning.
+func discoverFiltered(
+	ctx context.Context,
+	cfg *config.Config,
+	logger *zap.Logger,
+) ([]discovery.Target, func(), error) {
+	runtime, cleanup, err := connectDocker(ctx, cfg, logger)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	targets, err := discovery.Discover(ctx, runtime)
+	if err != nil {
+		cleanup()
+
+		return nil, nil, fmt.Errorf("discover volumes: %w", err)
+	}
+
+	return filter.Apply(targets, cfg.Discovery).Included, cleanup, nil
+}
+
+// buildForgetOptions assembles the forget.Options literal shared by the
+// run and forget commands.
+func buildForgetOptions(hostname string, allHosts, dryRun, prune bool) forget.Options {
+	return forget.Options{
+		Hostname: hostname,
+		AllHosts: allHosts,
+		DryRun:   dryRun,
+		Prune:    prune,
+	}
 }
