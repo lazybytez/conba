@@ -22,7 +22,10 @@ const envConbaBinary = "CONBA_BINARY"
 // the standard TestMain handoff since TestMain has no *testing.T.
 var binaryPath string
 
-// requiredServices must stay in sync with test/e2e/compose.yaml.
+// requiredServices must stay in sync with test/e2e/compose.yaml. The
+// conba-e2e-seed service is intentionally omitted: it is a one-shot seeder
+// that writes the VM-local bind source and exits, so it is never running or
+// healthy by the time the suite checks service health.
 var requiredServices = []string{
 	containerMySQL,
 	containerApp,
