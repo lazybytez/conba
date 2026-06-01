@@ -1,26 +1,54 @@
 # E2E test fixture for conba.
-# Defines four services on the conba-e2e network:
-#   - conba-e2e-mysql:         MySQL 8.0 with a bind-mounted init.sql and a named data volume
+# Defines five services:
+#   - conba-e2e-seed:          One-shot Alpine seeder that writes init.sql into a VM-local dir and exits
+#   - conba-e2e-mysql:         MySQL 8.0 with a bind-mounted init.sql (VM-local) and a named data volume
 #   - conba-e2e-app:           Alpine container with a small /data tree (backed up by conba)
 #   - conba-e2e-ignored:       Alpine container labelled conba.enabled=false (excluded from backup)
 #   - conba-e2e-bind-excluded: Alpine container with conba.exclude-mount-destinations label
 #
+# conba-e2e-seed copies compose/mysql/init.sql into /var/lib/conba-e2e-bind (a VM-local path on
+# Docker Desktop's Linux VM); mysql and bind-excluded then bind that VM-local copy. restic backs up
+# the VM-local source cleanly, whereas reading a macOS host bind source directly fails with EIO via
+# Docker Desktop's file-sharing layer. A plain copy of the host file is unaffected by that bug, so
+# init.sql stays a real file in the repo rather than being inlined.
+#
 # Usage:
-#   docker compose -f test/e2e/compose.yaml up -d --wait --wait-timeout 60
+#   docker compose -f test/e2e/compose.yaml up -d --wait --wait-timeout 120
 #   docker compose -f test/e2e/compose.yaml down -v
 
 name: conba-e2e
 
 services:
+    conba-e2e-seed:
+        image: docker.io/library/alpine:3.20.10
+        container_name: conba-e2e-seed
+        restart: "no"
+        volumes:
+            - ./compose/mysql/init.sql:/seed-src/init.sql:ro
+            - /var/lib/conba-e2e-bind:/var/lib/conba-e2e-bind
+        command: >
+            sh -c 'mkdir -p /var/lib/conba-e2e-bind
+            && cp /seed-src/init.sql /var/lib/conba-e2e-bind/init.sql'
+        cap_drop:
+            - ALL
+        security_opt:
+            - no-new-privileges:true
+        read_only: true
+        tmpfs:
+            - /tmp:noexec
+
     conba-e2e-mysql:
         image: docker.io/library/mysql:8.0.45
         container_name: conba-e2e-mysql
+        depends_on:
+            conba-e2e-seed:
+                condition: service_completed_successfully
         environment:
             MYSQL_ROOT_PASSWORD: conba-e2e
             MYSQL_DATABASE: conba_e2e
         volumes:
             - conba-e2e-mysql-data:/var/lib/mysql
-            - ./compose/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+            - /var/lib/conba-e2e-bind/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
         healthcheck:
             test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-pconba-e2e"]
             interval: 5s
@@ -97,9 +125,12 @@ services:
     conba-e2e-bind-excluded:
         image: docker.io/library/alpine:3.20.10
         container_name: conba-e2e-bind-excluded
+        depends_on:
+            conba-e2e-seed:
+                condition: service_completed_successfully
         volumes:
             - conba-e2e-bind-excluded-data:/data
-            - ./compose/mysql/init.sql:/etc/conba-bind-excluded/init.sql:ro
+            - /var/lib/conba-e2e-bind/init.sql:/etc/conba-bind-excluded/init.sql:ro
         command: >
             sh -c '[ -f /data/marker ] || touch /data/marker
             && exec tail -f /dev/null'

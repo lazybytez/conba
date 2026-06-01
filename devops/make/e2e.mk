@@ -5,9 +5,16 @@
 
 E2E_COMPOSE := $(DOCKER_EXECUTABLE) compose -f test/e2e/compose.yaml
 
+# conba runs inside this container and reads each backup target's mount
+# source. /var/lib/docker/volumes exposes named-volume sources; the e2e
+# fixture's bind source is seeded into the VM-local /var/lib/conba-e2e-bind
+# dir (see test/e2e/compose.yaml), mounted here so conba can read it on both
+# Linux and Docker Desktop. $(CURDIR):$(CURDIR) is retained so any repo-path
+# bind source would still resolve.
 E2E_RUN := $(DOCKER_EXECUTABLE) run --rm \
 	-v /var/run/docker.sock:/var/run/docker.sock \
 	-v /var/lib/docker/volumes:/var/lib/docker/volumes \
+	-v /var/lib/conba-e2e-bind:/var/lib/conba-e2e-bind:ro \
 	-v $(CURDIR):/app -w /app \
 	-v $(CURDIR):$(CURDIR):ro \
 	-e CONBA_BINARY=/app/bin/conba
