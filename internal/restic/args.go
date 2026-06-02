@@ -19,6 +19,23 @@ func BuildBackupArgs(path string, tags []string) []string {
 	return args
 }
 
+// BuildBackupFromStdinArgs returns the argument slice for backing up data
+// piped to restic's stdin via --stdin, naming the snapshot after filename
+// and applying optional tags.
+//
+// restic does not spawn the source process: conba attaches the reader as
+// the restic subprocess stdin.
+func BuildBackupFromStdinArgs(filename string, tags []string) []string {
+	args := []string{
+		"backup",
+		"--stdin",
+		"--stdin-filename=" + filename,
+	}
+	args = appendTags(args, tags)
+
+	return args
+}
+
 // BuildSnapshotArgs returns the argument slice for listing snapshots
 // with optional tag filtering.
 func BuildSnapshotArgs(tags []string) []string {
