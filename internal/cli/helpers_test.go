@@ -45,6 +45,7 @@ func testConfigWithRestic(resticCfg config.ResticConfig) *config.Config {
 			KeepMonthly: 0,
 			KeepYearly:  0,
 		},
+		PreBackupCommands: config.PreBackupCommandsConfig{Enabled: false},
 	}
 }
 

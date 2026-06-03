@@ -35,6 +35,7 @@ func TestWithConfigAndFromContext(t *testing.T) {
 			KeepMonthly: 0,
 			KeepYearly:  0,
 		},
+		PreBackupCommands: config.PreBackupCommandsConfig{Enabled: false},
 	}
 	ctx := config.WithConfig(context.Background(), cfg)
 
