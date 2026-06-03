@@ -2,7 +2,10 @@
 // operations used by conba to discover and inspect running containers.
 package runtime
 
-import "context"
+import (
+	"context"
+	"io"
+)
 
 // ContainerInfo holds metadata about a running container.
 type ContainerInfo struct {
@@ -35,4 +38,19 @@ type Runtime interface {
 
 	// Close releases any resources held by the runtime client.
 	Close() error
+}
+
+// CommandExecer runs a command inside a running container, optionally
+// attaching stdin and/or stdout. A nil stdin or stdout means that stream
+// is not attached. Implementations MUST return a non-nil error when the
+// container command exits non-zero, so callers can abort dependent work
+// (for example, a restic snapshot) instead of capturing partial output.
+type CommandExecer interface {
+	Exec(
+		ctx context.Context,
+		container string,
+		cmd []string,
+		stdin io.Reader,
+		stdout io.Writer,
+	) error
 }
