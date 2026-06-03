@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 
 	"github.com/lazybytez/conba/internal/backup"
 	"github.com/lazybytez/conba/internal/config"
 	"github.com/lazybytez/conba/internal/discovery"
+	"github.com/lazybytez/conba/internal/filter"
 	"github.com/lazybytez/conba/internal/logging"
 	"github.com/lazybytez/conba/internal/restic"
+	"github.com/lazybytez/conba/internal/runtime/docker"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
@@ -40,11 +41,13 @@ func runBackup(cmd *cobra.Command, _ []string) error {
 
 	dryRun, _ := cmd.Flags().GetBool("dry-run")
 
-	targets, cleanup, err := discoverFiltered(ctx, cfg, logger)
+	targets, runtimeClient, cleanup, err := discoverFiltered(ctx, cfg, logger)
 	if err != nil {
 		return err
 	}
 
+	// Keep the docker client open for the full backup: backup.Run uses it as
+	// the Execer to run pre-backup commands via the Docker SDK.
 	defer cleanup()
 
 	if len(targets) == 0 {
@@ -57,16 +60,24 @@ func runBackup(cmd *cobra.Command, _ []string) error {
 	}
 
 	if dryRun {
-		return printDryRun(cmd.OutOrStdout(), targets)
+		return printDryRun(cmd.OutOrStdout(), targets, cfg.PreBackupCommands.Enabled)
 	}
 
-	return executeBackup(cmd, cfg, logger, targets)
+	if cfg.PreBackupCommands.Enabled {
+		err = printPreBackupSummary(cmd.OutOrStdout(), targets)
+		if err != nil {
+			return err
+		}
+	}
+
+	return executeBackup(cmd, cfg, logger, runtimeClient, targets)
 }
 
 func executeBackup(
 	cmd *cobra.Command,
 	cfg *config.Config,
 	logger *zap.Logger,
+	runtimeClient *docker.Client,
 	targets []discovery.Target,
 ) error {
 	client, err := restic.New(cfg.Restic, logger)
@@ -79,7 +90,9 @@ func executeBackup(
 		return fmt.Errorf("get hostname: %w", err)
 	}
 
-	err = backup.Run(cmd.Context(), targets, client.Backup, hostname, cmd.OutOrStdout())
+	opts := buildBackupOptions(client, runtimeClient, cfg, hostname)
+
+	err = backup.Run(cmd.Context(), targets, opts, cmd.OutOrStdout())
 	if err != nil {
 		return fmt.Errorf("run backup: %w", err)
 	}
@@ -87,50 +100,55 @@ func executeBackup(
 	return nil
 }
 
-func printDryRun(out io.Writer, targets []discovery.Target) error {
-	hostname, err := os.Hostname()
-	if err != nil {
-		return fmt.Errorf("get hostname: %w", err)
-	}
+// printPreBackupSummary emits one summary line per unique container that
+// carries valid pre-backup labels. Targets whose labels fail to parse are
+// silently skipped here; the downstream backup.Run reports the failure.
+func printPreBackupSummary(out io.Writer, targets []discovery.Target) error {
+	seen := make(map[string]struct{})
 
 	for _, target := range targets {
-		tags := backup.BuildTags(target, hostname)
-
-		_, err = fmt.Fprintf(out, "%s (%s)\n",
-			target.Container.Name,
-			shortID(target.Container.ID))
-		if err != nil {
-			return fmt.Errorf("writing output: %w", err)
+		name := target.Container.Name
+		if _, ok := seen[name]; ok {
+			continue
 		}
 
-		_, err = fmt.Fprintf(out, "  %s  %s \u2192 %s\n",
-			target.Mount.Type,
-			target.Mount.Name,
-			target.Mount.Source)
-		if err != nil {
-			return fmt.Errorf("writing output: %w", err)
+		spec, hasSpec, err := filter.PreBackup(target)
+		// Invalid-mode targets surface their failure in runGroup's output
+		// during the actual backup; suppressing the summary line here keeps
+		// the pre-run banner clean of redundant errors.
+		if err != nil || !hasSpec {
+			continue
 		}
 
-		_, err = fmt.Fprintf(out, "  tags: %s\n",
-			formatTags(tags))
-		if err != nil {
-			return fmt.Errorf("writing output: %w", err)
-		}
+		seen[name] = struct{}{}
 
-		_, err = fmt.Fprintln(out)
-		if err != nil {
-			return fmt.Errorf("writing output: %w", err)
+		writeErr := writePreBackupLine(out, name, spec)
+		if writeErr != nil {
+			return writeErr
 		}
-	}
-
-	_, err = fmt.Fprintf(out, "%d volume(s) would be backed up.\n", len(targets))
-	if err != nil {
-		return fmt.Errorf("writing output: %w", err)
 	}
 
 	return nil
 }
 
-func formatTags(tags []string) string {
-	return strings.Join(tags, ", ")
+// writePreBackupLine writes a single pre-backup summary line, applying the
+// "default to labeled container name" rule for filename.
+func writePreBackupLine(out io.Writer, container string, spec filter.Spec) error {
+	filename := spec.Filename
+	if filename == "" {
+		filename = container
+	}
+
+	_, err := fmt.Fprintf(
+		out,
+		"pre-backup: %s mode=%s filename=%s\n",
+		container,
+		spec.Mode,
+		filename,
+	)
+	if err != nil {
+		return fmt.Errorf("writing output: %w", err)
+	}
+
+	return nil
 }

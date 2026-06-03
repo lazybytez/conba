@@ -18,11 +18,13 @@ func TestStatus_Uninitialized(t *testing.T) {
 	repoPath := filepath.Join(dir, "repo")
 
 	writeConfig(t, dir, configOpts{
-		ResticRepoPath:      repoPath,
-		ResticPassword:      "",
-		IncludeNames:        nil,
-		IncludeNamePatterns: nil,
-		ExcludeNames:        nil,
+		ResticRepoPath:           repoPath,
+		ResticPassword:           "",
+		IncludeNames:             nil,
+		IncludeNamePatterns:      nil,
+		ExcludeNames:             nil,
+		ResticEnvironment:        nil,
+		PreBackupCommandsEnabled: false,
 	})
 
 	cfg := runConfig{Dir: dir, Stdin: nil, Env: nil}
@@ -42,11 +44,13 @@ func TestStatus_Initialized(t *testing.T) {
 	repoPath := filepath.Join(dir, "repo")
 
 	writeConfig(t, dir, configOpts{
-		ResticRepoPath:      repoPath,
-		ResticPassword:      "",
-		IncludeNames:        nil,
-		IncludeNamePatterns: nil,
-		ExcludeNames:        nil,
+		ResticRepoPath:           repoPath,
+		ResticPassword:           "",
+		IncludeNames:             nil,
+		IncludeNamePatterns:      nil,
+		ExcludeNames:             nil,
+		ResticEnvironment:        nil,
+		PreBackupCommandsEnabled: false,
 	})
 
 	cfg := runConfig{Dir: dir, Stdin: nil, Env: nil}

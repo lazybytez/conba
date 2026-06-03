@@ -173,7 +173,7 @@ func buildSurgicalTags(flags forgetFlags, hostname string) []string {
 func runForgetDiscovery(req *forgetRequest) error {
 	ctx := req.cmd.Context()
 
-	targets, cleanup, err := discoverFiltered(ctx, req.cfg, req.logger)
+	targets, _, cleanup, err := discoverFiltered(ctx, req.cfg, req.logger)
 	if err != nil {
 		return err
 	}
