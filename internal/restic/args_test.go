@@ -179,6 +179,52 @@ func TestBuildStatsArgs(t *testing.T) {
 	}
 }
 
+func TestBuildBackupFromStdinArgs(t *testing.T) {
+	t.Parallel()
+
+	prefix := func(filename string) []string {
+		return []string{"backup", "--stdin", "--stdin-filename=" + filename}
+	}
+
+	tests := []struct {
+		name     string
+		filename string
+		tags     []string
+		want     []string
+	}{
+		{
+			name:     "no tags",
+			filename: "dump.sql",
+			tags:     nil,
+			want:     prefix("dump.sql"),
+		},
+		{
+			name:     "one tag",
+			filename: "dump.sql",
+			tags:     []string{"a"},
+			want:     append(prefix("dump.sql"), "--tag", "a"),
+		},
+		{
+			name:     "multiple tags",
+			filename: "stream.bin",
+			tags:     []string{"web", "production"},
+			want:     append(prefix("stream.bin"), "--tag", "web,production"),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := restic.BuildBackupFromStdinArgs(test.filename, test.tags)
+			if !slices.Equal(got, test.want) {
+				t.Errorf("BuildBackupFromStdinArgs(%q, %v) = %v, want %v",
+					test.filename, test.tags, got, test.want)
+			}
+		})
+	}
+}
+
 func TestBuildForgetArgs_EdgeCases(t *testing.T) {
 	t.Parallel()
 

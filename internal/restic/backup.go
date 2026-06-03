@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 )
@@ -21,6 +22,23 @@ func (c *Client) Backup(ctx context.Context, path string, tags []string) error {
 	_, err = c.run(ctx, BuildBackupArgs(path, tags))
 	if err != nil {
 		return fmt.Errorf("restic backup: %w", err)
+	}
+
+	return nil
+}
+
+// BackupFromStdin runs a restic backup that captures data piped from the
+// given reader into a snapshot named after filename, with optional tags.
+// conba attaches stdin to the restic subprocess directly; restic does not
+// spawn a source process. Restic's stderr flows to the conba logger as
+// warnings, matching Backup. A non-zero exit status from restic is wrapped
+// as ErrResticFailed.
+func (c *Client) BackupFromStdin(
+	ctx context.Context, filename string, tags []string, stdin io.Reader,
+) error {
+	_, err := c.runWithStdin(ctx, BuildBackupFromStdinArgs(filename, tags), stdin)
+	if err != nil {
+		return fmt.Errorf("restic backup-from-stdin: %w", err)
 	}
 
 	return nil

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os/exec"
 
 	"github.com/lazybytez/conba/internal/config"
@@ -36,10 +37,20 @@ func New(cfg config.ResticConfig, logger *zap.Logger) (*Client, error) {
 	}, nil
 }
 
+// run executes restic with the given argv and no stdin, returning its stdout.
 func (c *Client) run(ctx context.Context, args []string) ([]byte, error) {
+	return c.runWithStdin(ctx, args, nil)
+}
+
+// runWithStdin runs restic with the given argv, attaching stdin (nil for none)
+// as the subprocess standard input, and returns its stdout. A non-zero exit is
+// classified as ErrResticFailed, with restic's stderr logged and included in
+// the error.
+func (c *Client) runWithStdin(ctx context.Context, args []string, stdin io.Reader) ([]byte, error) {
 	//nolint:gosec // binary path from operator config, not user input
 	cmd := exec.CommandContext(ctx, c.binary, args...)
 	cmd.Env = c.env
+	cmd.Stdin = stdin
 
 	out, err := cmd.Output()
 	if err != nil {
