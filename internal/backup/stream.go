@@ -51,11 +51,7 @@ func RunStream(
 	execer runtime.CommandExecer,
 	streamFn StreamFunc,
 ) error {
-	filename := spec.Filename
-	if filename == "" {
-		filename = labeledContainer
-	}
-
+	filename := resolveStreamFilename(spec, labeledContainer)
 	cmd := []string{"sh", "-c", spec.Command}
 	tags := BuildStreamTags(labeledContainer, hostname)
 
@@ -94,10 +90,26 @@ func RunStream(
 	// the sink is already gone, so this can no longer trigger a commit.
 	_ = pipeWrite.Close()
 
+	return streamResult(labeledContainer, execErr, sinkErr)
+}
+
+// resolveStreamFilename returns the snapshot filename for a stream backup,
+// defaulting to the labeled container name when the spec leaves it empty.
+func resolveStreamFilename(spec filter.Spec, labeledContainer string) string {
+	if spec.Filename == "" {
+		return labeledContainer
+	}
+
+	return spec.Filename
+}
+
+// streamResult collapses the command and sink outcomes into a single error.
+// The command is the root cause on the failure path, so its error takes
+// precedence: a sink error there is the expected consequence of terminating
+// restic. Both nil means the snapshot was committed.
+func streamResult(labeledContainer string, execErr, sinkErr error) error {
 	switch {
 	case execErr != nil:
-		// The command is the root cause; any sink error is the expected
-		// consequence of terminating restic, so surface the command failure.
 		return fmt.Errorf("run stream backup for %s: %w", labeledContainer, execErr)
 	case sinkErr != nil:
 		return fmt.Errorf("run stream backup for %s: %w", labeledContainer, sinkErr)
