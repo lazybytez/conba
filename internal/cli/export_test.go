@@ -9,12 +9,18 @@ import (
 	"github.com/spf13/pflag"
 )
 
+// PrintResult is a test-only wrapper around printResultWithFeatureFlag
+// that renders as if the pre-backup feature were enabled.
+func PrintResult(out io.Writer, result filter.Result) error {
+	return printResultWithFeatureFlag(out, result, true)
+}
+
 // Exported aliases for unexported functions, used by tests in cli_test package.
 var (
-	ShortID          = shortID
-	GroupByContainer = groupByContainer
-	PrintResult      = printResult
-	PrintExcluded    = printExcluded
+	ShortID                    = shortID
+	GroupByContainer           = groupByContainer
+	PrintResultWithFeatureFlag = printResultWithFeatureFlag
+	PrintExcluded              = printExcluded
 
 	PrintStatus         = printStatus
 	PrintNotInitialized = printNotInitialized
@@ -39,7 +45,7 @@ func SnapshotFiltersTags(f SnapshotFilters) []string { return f.tags() }
 var (
 	_ func(string) string                           = shortID
 	_ func([]discovery.Target) [][]discovery.Target = groupByContainer
-	_ func(io.Writer, filter.Result) error          = printResult
+	_ func(io.Writer, filter.Result, bool) error    = printResultWithFeatureFlag
 	_ func(io.Writer, []filter.Exclusion) error     = printExcluded
 
 	_ func(io.Writer, string, []restic.Snapshot, restic.RepoStats) error = printStatus
