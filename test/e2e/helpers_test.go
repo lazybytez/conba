@@ -132,6 +132,14 @@ type configOpts struct {
 	IncludeNamePatterns []string
 	ExcludeNames        []string
 	Retention           config.RetentionConfig
+	// ResticEnvironment is rendered under restic.environment when non-empty.
+	// Pre-backup-command tests need PATH (so restic can find docker) and
+	// RESTIC_CACHE_DIR / HOME (restic refuses to spawn child commands
+	// without a cache directory). Volume-only tests leave it nil.
+	ResticEnvironment map[string]string
+	// PreBackupCommandsEnabled flips pre_backup_commands.enabled. Default
+	// (false / absent) leaves the feature off, matching production default.
+	PreBackupCommandsEnabled bool
 }
 
 // retentionKeepOneDaily is the only retention shape the forget e2e
@@ -172,6 +180,12 @@ discovery:
 restic:
   repository: {{ printf "%q" .ResticRepoPath }}
   password: {{ printf "%q" .ResticPassword }}
+{{- if .ResticEnvironment }}
+  environment:
+{{- range $k, $v := .ResticEnvironment }}
+    {{ $k }}: {{ printf "%q" $v }}
+{{- end }}
+{{- end }}
 {{- if or .Retention.KeepDaily .Retention.KeepWeekly .Retention.KeepMonthly .Retention.KeepYearly }}
 retention:
 {{- if .Retention.KeepDaily }}
@@ -186,6 +200,10 @@ retention:
 {{- if .Retention.KeepYearly }}
   keep_yearly: {{ .Retention.KeepYearly }}
 {{- end }}
+{{- end }}
+{{- if .PreBackupCommandsEnabled }}
+pre_backup_commands:
+  enabled: true
 {{- end }}
 `
 

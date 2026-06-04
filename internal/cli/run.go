@@ -11,6 +11,7 @@ import (
 	"github.com/lazybytez/conba/internal/forget"
 	"github.com/lazybytez/conba/internal/logging"
 	"github.com/lazybytez/conba/internal/restic"
+	"github.com/lazybytez/conba/internal/runtime/docker"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"go.uber.org/zap"
@@ -66,11 +67,13 @@ func runRun(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	targets, cleanup, err := discoverFiltered(req.cmd.Context(), req.cfg, req.logger)
+	targets, runtimeClient, cleanup, err := discoverFiltered(req.cmd.Context(), req.cfg, req.logger)
 	if err != nil {
 		return err
 	}
 
+	// Keep the docker client open across the whole cycle: runBackupPhase wires
+	// it as the Execer so backup.Run can run pre-backup commands via the SDK.
 	defer cleanup()
 
 	if len(targets) == 0 {
@@ -83,7 +86,7 @@ func runRun(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	err = runBackupPhase(req, targets)
+	err = runBackupPhase(req, runtimeClient, targets)
 	if err != nil {
 		return err
 	}
@@ -155,7 +158,11 @@ func runInitPhase(req *runRequest) error {
 	return nil
 }
 
-func runBackupPhase(req *runRequest, targets []discovery.Target) error {
+func runBackupPhase(
+	req *runRequest,
+	runtimeClient *docker.Client,
+	targets []discovery.Target,
+) error {
 	out := req.cmd.OutOrStdout()
 
 	err := writePhaseHeader(out, "backup")
@@ -164,10 +171,12 @@ func runBackupPhase(req *runRequest, targets []discovery.Target) error {
 	}
 
 	if req.flags.dryRun {
-		return printDryRun(out, targets)
+		return printDryRun(out, targets, req.cfg.PreBackupCommands.Enabled)
 	}
 
-	err = backup.Run(req.cmd.Context(), targets, req.client.Backup, req.hostname, out)
+	opts := buildBackupOptions(req.client, runtimeClient, req.cfg, req.hostname)
+
+	err = backup.Run(req.cmd.Context(), targets, opts, out)
 	if err != nil {
 		return fmt.Errorf("run backup: %w", err)
 	}

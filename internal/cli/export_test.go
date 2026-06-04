@@ -29,6 +29,8 @@ var (
 
 	PrintDryRun = printDryRun
 
+	PrintPreBackupSummary = printPreBackupSummary
+
 	PrintSnapshots      = printSnapshots
 	ExtractTag          = extractTag
 	BuildFilterTags     = buildFilterTags
@@ -53,7 +55,8 @@ var (
 	_ func(io.Writer, string) error                                      = printLocked
 	_ func(io.Writer, string, error) error                               = handleStatusError
 
-	_ func(io.Writer, []discovery.Target) error = printDryRun
+	_ func(io.Writer, []discovery.Target, bool) error = printDryRun
+	_ func(io.Writer, []discovery.Target) error       = printPreBackupSummary
 
 	_ func(io.Writer, []restic.Snapshot) error = printSnapshots
 	_ func([]string, string) string            = extractTag
