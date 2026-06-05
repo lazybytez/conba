@@ -73,3 +73,37 @@ func (c *Client) runWithStdin(ctx context.Context, args []string, stdin io.Reade
 
 	return out, nil
 }
+
+// runStreaming invokes restic with the given args and streams stdout
+// directly into the supplied writer. Stderr is buffered and surfaced
+// in the same format as run when the subprocess exits non-zero.
+func (c *Client) runStreaming(ctx context.Context, args []string, stdout io.Writer) error {
+	//nolint:gosec // binary path from operator config, not user input
+	cmd := exec.CommandContext(ctx, c.binary, args...)
+	cmd.Env = c.env
+	cmd.Stdout = stdout
+
+	var stderr bytes.Buffer
+
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			c.logger.Warn("restic stderr",
+				zap.String("stderr", stderr.String()),
+				zap.String("command", args[0]),
+			)
+
+			return fmt.Errorf("%w: %s exited with code %d: %s",
+				ErrResticFailed, args[0], exitErr.ExitCode(), bytes.TrimSpace(stderr.Bytes()))
+		}
+
+		return fmt.Errorf("executing restic %s: %w", args[0], err)
+	}
+
+	c.logger.Debug("restic command completed", zap.String("command", args[0]))
+
+	return nil
+}
