@@ -50,6 +50,7 @@ func NewRootCommand() *cobra.Command {
 	cmd.AddCommand(NewSnapshotsCommand())
 	cmd.AddCommand(NewForgetCommand())
 	cmd.AddCommand(NewRunCommand())
+	cmd.AddCommand(NewRestoreCommand())
 
 	return cmd
 }
