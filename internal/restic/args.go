@@ -97,6 +97,12 @@ func BuildStatsArgs() []string {
 	return []string{"stats", "--json"}
 }
 
+// BuildDiffArgs returns the argument slice for diffing two snapshots.
+// Snapshot identifiers may be full IDs, short IDs, or the literal "latest".
+func BuildDiffArgs(snapA, snapB string) []string {
+	return []string{"diff", snapA, snapB}
+}
+
 // appendTags joins all tags into a single --tag flag. Restic treats values
 // within one --tag (comma-separated) as AND, and repeated --tag flags as OR;
 // conba always wants AND semantics for filtering, and backup accepts the
