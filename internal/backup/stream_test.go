@@ -119,9 +119,10 @@ func TestRunStream_CmdIsShDashC(t *testing.T) {
 	t.Parallel()
 
 	spec := filter.Spec{
-		Command:  "mysqldump --all-databases",
-		Mode:     filter.ModeReplace,
-		Filename: "",
+		Command:        "mysqldump --all-databases",
+		Mode:           filter.ModeReplace,
+		Filename:       "",
+		RestoreCommand: "",
 	}
 
 	execer := &fakeExecer{container: "", cmd: nil, payload: []byte("dump"), err: nil}
@@ -146,9 +147,10 @@ func TestRunStream_SuccessPayloadFlows(t *testing.T) {
 	t.Parallel()
 
 	spec := filter.Spec{
-		Command:  "echo hello",
-		Mode:     filter.ModeReplace,
-		Filename: "",
+		Command:        "echo hello",
+		Mode:           filter.ModeReplace,
+		Filename:       "",
+		RestoreCommand: "",
 	}
 
 	payload := []byte("the full backup payload")
@@ -180,9 +182,10 @@ func TestRunStream_FailingExecAborts(t *testing.T) {
 	t.Parallel()
 
 	spec := filter.Spec{
-		Command:  "echo partial; exit 1",
-		Mode:     filter.ModeReplace,
-		Filename: "",
+		Command:        "echo partial; exit 1",
+		Mode:           filter.ModeReplace,
+		Filename:       "",
+		RestoreCommand: "",
 	}
 
 	// Partial output is written, then the command fails.
@@ -211,9 +214,10 @@ func TestRunStream_DefaultFilename(t *testing.T) {
 	t.Parallel()
 
 	spec := filter.Spec{
-		Command:  "echo hello",
-		Mode:     filter.ModeReplace,
-		Filename: "",
+		Command:        "echo hello",
+		Mode:           filter.ModeReplace,
+		Filename:       "",
+		RestoreCommand: "",
 	}
 
 	execer := &fakeExecer{container: "", cmd: nil, payload: nil, err: nil}
@@ -233,9 +237,10 @@ func TestRunStream_CustomFilename(t *testing.T) {
 	t.Parallel()
 
 	spec := filter.Spec{
-		Command:  "mysqldump",
-		Mode:     filter.ModeReplace,
-		Filename: "dump.sql",
+		Command:        "mysqldump",
+		Mode:           filter.ModeReplace,
+		Filename:       "dump.sql",
+		RestoreCommand: "",
 	}
 
 	execer := &fakeExecer{container: "", cmd: nil, payload: nil, err: nil}
@@ -255,9 +260,10 @@ func TestRunStream_TagsMatchHelper(t *testing.T) {
 	t.Parallel()
 
 	spec := filter.Spec{
-		Command:  "echo hi",
-		Mode:     filter.ModeReplace,
-		Filename: "",
+		Command:        "echo hi",
+		Mode:           filter.ModeReplace,
+		Filename:       "",
+		RestoreCommand: "",
 	}
 
 	execer := &fakeExecer{container: "", cmd: nil, payload: nil, err: nil}
@@ -278,9 +284,10 @@ func TestRunStream_PropagatesSinkError(t *testing.T) {
 	t.Parallel()
 
 	spec := filter.Spec{
-		Command:  "echo hi",
-		Mode:     filter.ModeReplace,
-		Filename: "",
+		Command:        "echo hi",
+		Mode:           filter.ModeReplace,
+		Filename:       "",
+		RestoreCommand: "",
 	}
 
 	execer := &fakeExecer{container: "", cmd: nil, payload: []byte("data"), err: nil}

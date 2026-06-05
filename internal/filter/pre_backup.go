@@ -9,9 +9,10 @@ import (
 
 // Container label keys controlling pre-backup command execution.
 const (
-	LabelPreBackupCommand  = "conba.pre-backup.command"
-	LabelPreBackupMode     = "conba.pre-backup.mode"
-	LabelPreBackupFilename = "conba.pre-backup.filename"
+	LabelPreBackupCommand        = "conba.pre-backup.command"
+	LabelPreBackupMode           = "conba.pre-backup.mode"
+	LabelPreBackupFilename       = "conba.pre-backup.filename"
+	LabelPreBackupRestoreCommand = "conba.pre-backup.restore-command"
 )
 
 // Mode is the execution mode for a pre-backup command.
@@ -30,11 +31,15 @@ var ErrInvalidPreBackupMode = errors.New("invalid pre-backup mode")
 // Spec holds the parsed pre-backup configuration for a target.
 //
 // The command always runs in the labeled container itself. An empty Filename
-// means "use the labeled container's name as the filename".
+// means "use the labeled container's name as the filename". An empty
+// RestoreCommand means no label-driven restore command is configured; it is
+// independent of the presence-of-spec check, which is governed solely by
+// Command.
 type Spec struct {
-	Command  string
-	Mode     Mode
-	Filename string
+	Command        string
+	Mode           Mode
+	Filename       string
+	RestoreCommand string
 }
 
 // PreBackup parses the conba.pre-backup.* labels from the target's container.
@@ -50,18 +55,19 @@ func PreBackup(target discovery.Target) (Spec, bool, error) {
 
 	command, ok := labels[LabelPreBackupCommand]
 	if !ok || command == "" {
-		return Spec{Command: "", Mode: "", Filename: ""}, false, nil
+		return Spec{Command: "", Mode: "", Filename: "", RestoreCommand: ""}, false, nil
 	}
 
 	mode, err := parseMode(labels[LabelPreBackupMode])
 	if err != nil {
-		return Spec{Command: "", Mode: "", Filename: ""}, false, err
+		return Spec{Command: "", Mode: "", Filename: "", RestoreCommand: ""}, false, err
 	}
 
 	return Spec{
-		Command:  command,
-		Mode:     mode,
-		Filename: labels[LabelPreBackupFilename],
+		Command:        command,
+		Mode:           mode,
+		Filename:       labels[LabelPreBackupFilename],
+		RestoreCommand: labels[LabelPreBackupRestoreCommand],
 	}, true, nil
 }
 
