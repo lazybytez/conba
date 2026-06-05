@@ -42,7 +42,7 @@ func TestPreBackup_NoCommandLabel(t *testing.T) {
 		t.Errorf("want ok=false, got ok=true")
 	}
 
-	if spec != (filter.Spec{Command: "", Mode: "", Filename: ""}) {
+	if spec != (filter.Spec{Command: "", Mode: "", Filename: "", RestoreCommand: ""}) {
 		t.Errorf("want zero spec, got %+v", spec)
 	}
 }
@@ -67,7 +67,7 @@ func TestPreBackup_EmptyCommandLabel(t *testing.T) {
 		t.Errorf("want ok=false for empty command, got ok=true")
 	}
 
-	if spec != (filter.Spec{Command: "", Mode: "", Filename: ""}) {
+	if spec != (filter.Spec{Command: "", Mode: "", Filename: "", RestoreCommand: ""}) {
 		t.Errorf("want zero spec for empty command, got %+v", spec)
 	}
 }
@@ -99,15 +99,20 @@ func TestPreBackup_CommandOnlyAppliesDefaults(t *testing.T) {
 	if spec.Filename != "" {
 		t.Errorf("want filename '' (default), got %q", spec.Filename)
 	}
+
+	if spec.RestoreCommand != "" {
+		t.Errorf("want restore command '' (default), got %q", spec.RestoreCommand)
+	}
 }
 
 func TestPreBackup_AllLabelsSet(t *testing.T) {
 	t.Parallel()
 
 	target := makePreBackupTarget(map[string]string{
-		filter.LabelPreBackupCommand:  "pg_dump mydb",
-		filter.LabelPreBackupMode:     "alongside",
-		filter.LabelPreBackupFilename: "dump.sql",
+		filter.LabelPreBackupCommand:        "pg_dump mydb",
+		filter.LabelPreBackupMode:           "alongside",
+		filter.LabelPreBackupFilename:       "dump.sql",
+		filter.LabelPreBackupRestoreCommand: "psql mydb",
 	})
 
 	spec, ok, err := filter.PreBackup(target)
@@ -120,9 +125,10 @@ func TestPreBackup_AllLabelsSet(t *testing.T) {
 	}
 
 	want := filter.Spec{
-		Command:  "pg_dump mydb",
-		Mode:     filter.ModeAlongside,
-		Filename: "dump.sql",
+		Command:        "pg_dump mydb",
+		Mode:           filter.ModeAlongside,
+		Filename:       "dump.sql",
+		RestoreCommand: "psql mydb",
 	}
 
 	if spec != want {
@@ -152,9 +158,10 @@ func TestPreBackup_ContainerLabelIgnored(t *testing.T) {
 	}
 
 	want := filter.Spec{
-		Command:  "mysqldump --all-databases",
-		Mode:     filter.ModeReplace,
-		Filename: "",
+		Command:        "mysqldump --all-databases",
+		Mode:           filter.ModeReplace,
+		Filename:       "",
+		RestoreCommand: "",
 	}
 
 	if spec != want {
@@ -223,7 +230,7 @@ func TestPreBackup_InvalidMode(t *testing.T) {
 		t.Errorf("want ok=false, got ok=true")
 	}
 
-	if spec != (filter.Spec{Command: "", Mode: "", Filename: ""}) {
+	if spec != (filter.Spec{Command: "", Mode: "", Filename: "", RestoreCommand: ""}) {
 		t.Errorf("want zero spec, got %+v", spec)
 	}
 
@@ -247,6 +254,10 @@ func TestPreBackup_LabelConstantValues(t *testing.T) {
 		{"LabelPreBackupCommand", filter.LabelPreBackupCommand, "conba.pre-backup.command"},
 		{"LabelPreBackupMode", filter.LabelPreBackupMode, "conba.pre-backup.mode"},
 		{"LabelPreBackupFilename", filter.LabelPreBackupFilename, "conba.pre-backup.filename"},
+		{
+			"LabelPreBackupRestoreCommand", filter.LabelPreBackupRestoreCommand,
+			"conba.pre-backup.restore-command",
+		},
 	}
 
 	for _, testCase := range cases {
@@ -257,5 +268,87 @@ func TestPreBackup_LabelConstantValues(t *testing.T) {
 				t.Errorf("want %q, got %q", testCase.want, testCase.got)
 			}
 		})
+	}
+}
+
+// TestPreBackup_RestoreCommandLabelSet asserts that the restore-command label
+// value is propagated to Spec.RestoreCommand when both the command label and
+// the restore-command label are set.
+func TestPreBackup_RestoreCommandLabelSet(t *testing.T) {
+	t.Parallel()
+
+	target := makePreBackupTarget(map[string]string{
+		filter.LabelPreBackupCommand:        "pg_dump mydb",
+		filter.LabelPreBackupRestoreCommand: "psql mydb",
+	})
+
+	spec, ok, err := filter.PreBackup(target)
+	if err != nil {
+		t.Fatalf("want no error, got %v", err)
+	}
+
+	if !ok {
+		t.Fatalf("want ok=true, got ok=false")
+	}
+
+	if spec.RestoreCommand != "psql mydb" {
+		t.Errorf("want restore command 'psql mydb', got %q", spec.RestoreCommand)
+	}
+}
+
+// TestPreBackup_RestoreCommandLabelAbsent asserts that an absent
+// restore-command label produces an empty Spec.RestoreCommand without
+// affecting the (populated, true, nil) result for the parent command.
+func TestPreBackup_RestoreCommandLabelAbsent(t *testing.T) {
+	t.Parallel()
+
+	target := makePreBackupTarget(map[string]string{
+		filter.LabelPreBackupCommand: "pg_dump mydb",
+	})
+
+	spec, ok, err := filter.PreBackup(target)
+	if err != nil {
+		t.Fatalf("want no error, got %v", err)
+	}
+
+	if !ok {
+		t.Fatalf("want ok=true, got ok=false")
+	}
+
+	if spec.RestoreCommand != "" {
+		t.Errorf("want restore command '' when label absent, got %q", spec.RestoreCommand)
+	}
+}
+
+// TestPreBackup_RestoreCommandWithAllLabels asserts the full round-trip when
+// every supported pre-backup label is set, including restore-command.
+func TestPreBackup_RestoreCommandWithAllLabels(t *testing.T) {
+	t.Parallel()
+
+	target := makePreBackupTarget(map[string]string{
+		filter.LabelPreBackupCommand:        "pg_dump mydb",
+		filter.LabelPreBackupMode:           "alongside",
+		filter.LabelPreBackupFilename:       "dump.sql",
+		filter.LabelPreBackupRestoreCommand: "psql mydb < /restore/dump.sql",
+	})
+
+	spec, ok, err := filter.PreBackup(target)
+	if err != nil {
+		t.Fatalf("want no error, got %v", err)
+	}
+
+	if !ok {
+		t.Fatalf("want ok=true, got ok=false")
+	}
+
+	want := filter.Spec{
+		Command:        "pg_dump mydb",
+		Mode:           filter.ModeAlongside,
+		Filename:       "dump.sql",
+		RestoreCommand: "psql mydb < /restore/dump.sql",
+	}
+
+	if spec != want {
+		t.Errorf("want %+v, got %+v", want, spec)
 	}
 }
