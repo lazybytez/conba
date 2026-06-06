@@ -33,6 +33,7 @@ export default {
         "filter",
         "retention",
         "logging",
+        "report",
       ],
     ],
     "subject-max-length": [2, "always", 50],
