@@ -589,17 +589,17 @@ const (
 	reasonDestLabel  = "excluded by conba.exclude-mount-destinations label"
 )
 
-func runBindExclusionCases(t *testing.T, cases []bindExclusionCase) {
+func runBindExclusionCases(t *testing.T, tests []bindExclusionCase) {
 	t.Helper()
 
-	for _, testCase := range cases {
-		t.Run(testCase.name, func(t *testing.T) {
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			targets := makeTargetsWithLabels(testCase.container, testCase.labels, testCase.mounts)
+			targets := makeTargetsWithLabels(test.container, test.labels, test.mounts)
 			result := filter.Apply(targets, emptyConfig())
 
-			for _, want := range testCase.expect {
+			for _, want := range test.expect {
 				assertExpectation(t, result, want.mountDest, want.excluded, want.reason)
 			}
 		})
@@ -609,7 +609,7 @@ func runBindExclusionCases(t *testing.T, cases []bindExclusionCase) {
 func TestApply_ExcludeBindMountsToggle(t *testing.T) {
 	t.Parallel()
 
-	cases := []bindExclusionCase{
+	tests := []bindExclusionCase{
 		{
 			name:      "bind mount with exclude-bind-mounts=true is excluded",
 			container: "app",
@@ -648,7 +648,7 @@ func TestApply_ExcludeBindMountsToggle(t *testing.T) {
 		},
 	}
 
-	runBindExclusionCases(t, cases)
+	runBindExclusionCases(t, tests)
 }
 
 func excludeMountDestinationsCases() []bindExclusionCase {
@@ -722,7 +722,7 @@ func TestApply_ExcludeMountDestinations(t *testing.T) {
 func TestApply_ExcludeBindMountsAndDestinationsCombined(t *testing.T) {
 	t.Parallel()
 
-	cases := []bindExclusionCase{
+	tests := []bindExclusionCase{
 		{
 			name:      "both labels combined apply union of exclusions",
 			container: "db",
@@ -743,5 +743,5 @@ func TestApply_ExcludeBindMountsAndDestinationsCombined(t *testing.T) {
 		},
 	}
 
-	runBindExclusionCases(t, cases)
+	runBindExclusionCases(t, tests)
 }

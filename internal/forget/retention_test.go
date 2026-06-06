@@ -124,12 +124,12 @@ func parseErrorCases() []parseCase {
 	}
 }
 
-func runParseCase(t *testing.T, testCase parseCase) {
+func runParseCase(t *testing.T, test parseCase) {
 	t.Helper()
 
-	got, err := forget.ParseRetentionLabel(testCase.input)
+	got, err := forget.ParseRetentionLabel(test.input)
 
-	if testCase.wantErr {
+	if test.wantErr {
 		if err == nil {
 			t.Fatalf("want error, got nil (parsed %+v)", got)
 		}
@@ -145,21 +145,21 @@ func runParseCase(t *testing.T, testCase parseCase) {
 		t.Fatalf("want nil error, got %v", err)
 	}
 
-	if got != testCase.want {
-		t.Errorf("got %+v, want %+v", got, testCase.want)
+	if got != test.want {
+		t.Errorf("got %+v, want %+v", got, test.want)
 	}
 }
 
 func TestParseRetentionLabel(t *testing.T) {
 	t.Parallel()
 
-	cases := append(parseSuccessCases(), parseErrorCases()...)
+	tests := append(parseSuccessCases(), parseErrorCases()...)
 
-	for _, testCase := range cases {
-		t.Run(testCase.name, func(t *testing.T) {
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			runParseCase(t, testCase)
+			runParseCase(t, test)
 		})
 	}
 }
@@ -234,14 +234,14 @@ func resolveCases() []resolveCase {
 	}
 }
 
-func runResolveCase(t *testing.T, testCase resolveCase) {
+func runResolveCase(t *testing.T, test resolveCase) {
 	t.Helper()
 
-	target := makeTargetWithLabels(testCase.labels)
+	target := makeTargetWithLabels(test.labels)
 
-	policy, resolution, err := forget.Resolve(target, testCase.global)
+	policy, resolution, err := forget.Resolve(target, test.global)
 
-	if testCase.wantErr {
+	if test.wantErr {
 		if err == nil {
 			t.Fatalf("want error, got nil (policy %+v, resolution %s)", policy, resolution)
 		}
@@ -250,8 +250,8 @@ func runResolveCase(t *testing.T, testCase resolveCase) {
 			t.Errorf("want error wrapping ErrInvalidRetentionLabel, got %v", err)
 		}
 
-		if resolution != testCase.wantResolution {
-			t.Errorf("want resolution %q, got %q", testCase.wantResolution, resolution)
+		if resolution != test.wantResolution {
+			t.Errorf("want resolution %q, got %q", test.wantResolution, resolution)
 		}
 
 		return
@@ -261,23 +261,23 @@ func runResolveCase(t *testing.T, testCase resolveCase) {
 		t.Fatalf("want nil error, got %v", err)
 	}
 
-	if policy != testCase.wantPolicy {
-		t.Errorf("policy: got %+v, want %+v", policy, testCase.wantPolicy)
+	if policy != test.wantPolicy {
+		t.Errorf("policy: got %+v, want %+v", policy, test.wantPolicy)
 	}
 
-	if resolution != testCase.wantResolution {
-		t.Errorf("resolution: got %q, want %q", resolution, testCase.wantResolution)
+	if resolution != test.wantResolution {
+		t.Errorf("resolution: got %q, want %q", resolution, test.wantResolution)
 	}
 }
 
 func TestResolve(t *testing.T) {
 	t.Parallel()
 
-	for _, testCase := range resolveCases() {
-		t.Run(testCase.name, func(t *testing.T) {
+	for _, test := range resolveCases() {
+		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			runResolveCase(t, testCase)
+			runResolveCase(t, test)
 		})
 	}
 }
