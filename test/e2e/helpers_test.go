@@ -363,6 +363,35 @@ func requireSuccess(t *testing.T, result runResult, cmd string) {
 	}
 }
 
+// requireFailure fails the test unless the command started cleanly but exited
+// non-zero: a runtime failure (no start error, exit code != 0).
+func requireFailure(t *testing.T, result runResult, cmd string) {
+	t.Helper()
+
+	if result.Err != nil {
+		t.Fatalf("runConba %s: unexpected start error: %v", cmd, result.Err)
+	}
+
+	if result.ExitCode == 0 {
+		t.Fatalf(
+			"%s exited 0, want non-zero; stderr=%q stdout=%q",
+			cmd, result.Stderr, result.Stdout,
+		)
+	}
+}
+
+// requireOutputContains fails the test if neither stdout nor stderr contains
+// want. conba writes user-facing errors to either stream depending on path.
+func requireOutputContains(t *testing.T, result runResult, want string) {
+	t.Helper()
+
+	combined := result.Stdout + result.Stderr
+	if !strings.Contains(combined, want) {
+		t.Fatalf("output does not contain %q; stdout=%q stderr=%q",
+			want, result.Stdout, result.Stderr)
+	}
+}
+
 // ResticSnapshot mirrors the subset of `restic snapshots --json` fields
 // consumed by the suite.
 type ResticSnapshot struct {

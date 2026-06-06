@@ -171,24 +171,9 @@ func TestRestore_VolumeMode_RefusesNonEmptyDestinationWithoutForce(t *testing.T)
 		"--volume", volumeName,
 		"--to", target,
 	)
-	if restoreResult.Err != nil {
-		t.Fatalf("conba restore: unexpected start error: %v", restoreResult.Err)
-	}
-
-	if restoreResult.ExitCode == 0 {
-		t.Fatalf(
-			"conba restore exited 0, want non-zero; stdout=%q stderr=%q",
-			restoreResult.Stdout, restoreResult.Stderr,
-		)
-	}
-
-	combined := restoreResult.Stdout + restoreResult.Stderr
-	if !strings.Contains(combined, "destination") || !strings.Contains(combined, "not empty") {
-		t.Fatalf(
-			"want stdout/stderr to mention destination not empty; stdout=%q stderr=%q",
-			restoreResult.Stdout, restoreResult.Stderr,
-		)
-	}
+	requireFailure(t, restoreResult, "conba restore")
+	requireOutputContains(t, restoreResult, "destination")
+	requireOutputContains(t, restoreResult, "not empty")
 
 	got := readFile(t, preExisting)
 	if string(got) != string(preContent) {
@@ -321,24 +306,8 @@ func TestRestore_StreamMode_RefusesWhenContainerNotRunning(t *testing.T) {
 		"--container", containerName,
 		"--to-command", "tee /tmp/proof",
 	)
-	if restoreResult.Err != nil {
-		t.Fatalf("conba restore: unexpected start error: %v", restoreResult.Err)
-	}
-
-	if restoreResult.ExitCode == 0 {
-		t.Fatalf(
-			"conba restore exited 0 against a stopped container; stdout=%q stderr=%q",
-			restoreResult.Stdout, restoreResult.Stderr,
-		)
-	}
-
-	combined := restoreResult.Stdout + restoreResult.Stderr
-	if !strings.Contains(combined, "not running") {
-		t.Fatalf(
-			"want stdout/stderr to mention 'not running'; stdout=%q stderr=%q",
-			restoreResult.Stdout, restoreResult.Stderr,
-		)
-	}
+	requireFailure(t, restoreResult, "conba restore")
+	requireOutputContains(t, restoreResult, "not running")
 }
 
 // TestRestore_StreamMode_RefusesWithoutFlagOrLabel asserts that a stream
@@ -352,31 +321,9 @@ func TestRestore_StreamMode_RefusesWithoutFlagOrLabel(t *testing.T) {
 	restoreResult := runConba(t, cfg, "restore",
 		"--container", containerName,
 	)
-	if restoreResult.Err != nil {
-		t.Fatalf("conba restore: unexpected start error: %v", restoreResult.Err)
-	}
-
-	if restoreResult.ExitCode == 0 {
-		t.Fatalf(
-			"conba restore exited 0 with no command source; stdout=%q stderr=%q",
-			restoreResult.Stdout, restoreResult.Stderr,
-		)
-	}
-
-	combined := restoreResult.Stdout + restoreResult.Stderr
-	if !strings.Contains(combined, "--to-command") {
-		t.Fatalf(
-			"want error to mention --to-command; stdout=%q stderr=%q",
-			restoreResult.Stdout, restoreResult.Stderr,
-		)
-	}
-
-	if !strings.Contains(combined, "restore-command") {
-		t.Fatalf(
-			"want error to mention restore-command label; stdout=%q stderr=%q",
-			restoreResult.Stdout, restoreResult.Stderr,
-		)
-	}
+	requireFailure(t, restoreResult, "conba restore")
+	requireOutputContains(t, restoreResult, "--to-command")
+	requireOutputContains(t, restoreResult, "restore-command")
 }
 
 // TestRestore_VolumeMode_DryRunWritesNoFiles asserts that --dry-run for
