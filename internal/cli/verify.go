@@ -34,10 +34,7 @@ func runVerify(cmd *cobra.Command, _ []string) error {
 		return errMissingConfig
 	}
 
-	readData, err := cmd.Flags().GetBool("read-data")
-	if err != nil {
-		return fmt.Errorf("read --read-data flag: %w", err)
-	}
+	readData := flagBool(cmd.Flags(), "read-data")
 
 	client, err := restic.New(cfg.Restic, logger)
 	if err != nil {

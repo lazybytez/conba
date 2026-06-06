@@ -6,6 +6,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/lazybytez/conba/internal/backup"
 	"github.com/lazybytez/conba/internal/config"
 	"github.com/lazybytez/conba/internal/logging"
 	"github.com/lazybytez/conba/internal/restic"
@@ -14,10 +15,13 @@ import (
 	"github.com/spf13/pflag"
 )
 
+// Tag prefixes are owned by the backup package (it writes them); the
+// snapshots and restore commands read them. Alias rather than redefine so
+// the schema has a single home.
 const (
-	tagPrefixContainer = "container="
-	tagPrefixVolume    = "volume="
-	tagPrefixHostname  = "hostname="
+	tagPrefixContainer = backup.ContainerTagPrefix
+	tagPrefixVolume    = backup.VolumeTagPrefix
+	tagPrefixHostname  = backup.HostTagPrefix
 
 	tablePadding = 2
 )

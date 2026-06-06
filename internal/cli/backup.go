@@ -39,7 +39,7 @@ func runBackup(cmd *cobra.Command, _ []string) error {
 		return errMissingConfig
 	}
 
-	dryRun, _ := cmd.Flags().GetBool("dry-run")
+	dryRun := flagBool(cmd.Flags(), "dry-run")
 
 	targets, runtimeClient, cleanup, err := discoverFiltered(ctx, cfg, logger)
 	if err != nil {

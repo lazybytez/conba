@@ -582,21 +582,19 @@ func (p *productionRestoreDeps) Dump(
 	return nil
 }
 
-// ContainerRunning implements RestoreCoreDeps. It walks the runtime's
-// container list because the docker package only exposes ListContainers.
+// ContainerRunning implements RestoreCoreDeps. ListContainers reports only
+// running containers, so a successful lookup means the container is running.
 func (p *productionRestoreDeps) ContainerRunning(ctx context.Context, name string) (bool, error) {
-	containers, err := p.runtime.ListContainers(ctx)
+	_, err := p.findContainerByName(ctx, name)
 	if err != nil {
-		return false, fmt.Errorf("list containers: %w", err)
-	}
-
-	for _, ctr := range containers {
-		if ctr.Name == name {
-			return true, nil
+		if errors.Is(err, errContainerNotFound) {
+			return false, nil
 		}
+
+		return false, err
 	}
 
-	return false, nil
+	return true, nil
 }
 
 // Exec implements RestoreCoreDeps by running the in-container command
@@ -624,9 +622,22 @@ func (p *productionRestoreDeps) Hostname() (string, error) {
 	return host, nil
 }
 
-// LookupContainer implements RestoreCoreDeps. It lists running containers
-// and returns the first matching name, mirroring discovery's lookup style.
+// LookupContainer implements RestoreCoreDeps. It returns the first running
+// container matching name, or errContainerNotFound.
 func (p *productionRestoreDeps) LookupContainer(
+	ctx context.Context, name string,
+) (runtime.ContainerInfo, error) {
+	ctr, err := p.findContainerByName(ctx, name)
+	if err != nil {
+		return runtime.ContainerInfo{}, err
+	}
+
+	return ctr, nil
+}
+
+// findContainerByName returns the running container whose name matches, or
+// errContainerNotFound. Shared by ContainerRunning and LookupContainer.
+func (p *productionRestoreDeps) findContainerByName(
 	ctx context.Context, name string,
 ) (runtime.ContainerInfo, error) {
 	containers, err := p.runtime.ListContainers(ctx)
