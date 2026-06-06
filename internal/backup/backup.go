@@ -260,7 +260,7 @@ func runTarget(
 			target.Mount.Name,
 		)
 
-		return outcomeFailed
+		return outcomeSkipped
 	}
 
 	tags := BuildVolumeTags(target, hostname)
