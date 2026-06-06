@@ -79,6 +79,30 @@ func TestClassifyError_AlreadyLocked(t *testing.T) {
 	}
 }
 
+func TestClassifyError_AlreadyInitialized(t *testing.T) {
+	t.Parallel()
+
+	err := restic.ClassifyError(
+		fmt.Errorf("Fatal: create key in repository ...: already initialized: %w", errClassifyStub),
+	)
+
+	if !errors.Is(err, restic.ErrRepoAlreadyInitialized) {
+		t.Errorf("want ErrRepoAlreadyInitialized, got %v", err)
+	}
+}
+
+func TestClassifyError_ConfigFileExists(t *testing.T) {
+	t.Parallel()
+
+	err := restic.ClassifyError(
+		fmt.Errorf("config file already exists: %w", errClassifyStub),
+	)
+
+	if !errors.Is(err, restic.ErrRepoAlreadyInitialized) {
+		t.Errorf("want ErrRepoAlreadyInitialized, got %v", err)
+	}
+}
+
 func TestClassifyError_Unknown(t *testing.T) {
 	t.Parallel()
 

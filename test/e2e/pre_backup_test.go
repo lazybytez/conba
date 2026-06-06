@@ -362,14 +362,7 @@ func TestPreBackup_FailedDumpCommand_FailsTargetCycleContinues(t *testing.T) {
 	cfg, repoPath := preBackupSetup(t, []string{includePattern}, true)
 
 	backupResult := runConba(t, cfg, "backup")
-	if backupResult.Err != nil {
-		t.Fatalf("conba backup: unexpected start error: %v", backupResult.Err)
-	}
-
-	if backupResult.ExitCode == 0 {
-		t.Fatalf("conba backup exited 0, want non-zero; stdout=%q stderr=%q",
-			backupResult.Stdout, backupResult.Stderr)
-	}
+	requireFailure(t, backupResult, "conba backup")
 
 	snaps := resticSnapshots(t, repoPath)
 
@@ -423,17 +416,7 @@ func TestPreBackup_PartialOutputThenNonZeroExit_StoresNoSnapshot(t *testing.T) {
 	before := streamSnapshotsOf(snapshotsForContainer(resticSnapshots(t, repoPath), containerName))
 
 	backupResult := runConba(t, cfg, "backup")
-	if backupResult.Err != nil {
-		t.Fatalf("conba backup: unexpected start error: %v", backupResult.Err)
-	}
-
-	if backupResult.ExitCode == 0 {
-		t.Fatalf(
-			"conba backup exited 0 after a partial-output non-zero command, want non-zero; "+
-				"stdout=%q stderr=%q",
-			backupResult.Stdout, backupResult.Stderr,
-		)
-	}
+	requireFailure(t, backupResult, "conba backup")
 
 	after := streamSnapshotsOf(snapshotsForContainer(resticSnapshots(t, repoPath), containerName))
 	if len(after) != len(before) {

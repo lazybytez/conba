@@ -32,7 +32,7 @@ func TestNewDiffCommand_RequiresExactlyTwoArgs(t *testing.T) {
 		t.Fatal("Args validator must be set")
 	}
 
-	cases := []struct {
+	tests := []struct {
 		name    string
 		args    []string
 		wantErr bool
@@ -43,17 +43,17 @@ func TestNewDiffCommand_RequiresExactlyTwoArgs(t *testing.T) {
 		{name: "three args", args: []string{"abc", "def", "ghi"}, wantErr: true},
 	}
 
-	for _, testCase := range cases {
-		t.Run(testCase.name, func(t *testing.T) {
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			err := cmd.Args(cmd, testCase.args)
-			if testCase.wantErr && err == nil {
-				t.Errorf("Args(%v) returned nil error, want error", testCase.args)
+			err := cmd.Args(cmd, test.args)
+			if test.wantErr && err == nil {
+				t.Errorf("Args(%v) returned nil error, want error", test.args)
 			}
 
-			if !testCase.wantErr && err != nil {
-				t.Errorf("Args(%v) returned %v, want nil", testCase.args, err)
+			if !test.wantErr && err != nil {
+				t.Errorf("Args(%v) returned %v, want nil", test.args, err)
 			}
 		})
 	}

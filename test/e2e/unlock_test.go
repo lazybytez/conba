@@ -51,14 +51,5 @@ func TestUnlock_MissingRepo(t *testing.T) {
 
 	unlockResult := runConba(t, cfg, "unlock")
 
-	if unlockResult.Err != nil {
-		t.Fatalf("conba unlock: unexpected start error: %v", unlockResult.Err)
-	}
-
-	if unlockResult.ExitCode == 0 {
-		t.Fatalf(
-			"missing-repo: conba unlock exited 0, want non-zero; stdout=%q stderr=%q",
-			unlockResult.Stdout, unlockResult.Stderr,
-		)
-	}
+	requireFailure(t, unlockResult, "conba unlock")
 }

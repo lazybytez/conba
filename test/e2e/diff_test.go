@@ -84,14 +84,5 @@ func TestDiff_MissingSnapshot(t *testing.T) {
 
 	diffResult := runConba(t, cfg, "diff", "nonexistent1", "nonexistent2")
 
-	if diffResult.Err != nil {
-		t.Fatalf("conba diff: unexpected start error: %v", diffResult.Err)
-	}
-
-	if diffResult.ExitCode == 0 {
-		t.Fatalf(
-			"missing-snapshot: conba diff exited 0, want non-zero; stdout=%q stderr=%q",
-			diffResult.Stdout, diffResult.Stderr,
-		)
-	}
+	requireFailure(t, diffResult, "conba diff")
 }

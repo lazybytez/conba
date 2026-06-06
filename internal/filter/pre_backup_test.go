@@ -246,7 +246,7 @@ func TestPreBackup_InvalidMode(t *testing.T) {
 func TestPreBackup_LabelConstantValues(t *testing.T) {
 	t.Parallel()
 
-	cases := []struct {
+	tests := []struct {
 		name string
 		got  string
 		want string
@@ -260,12 +260,12 @@ func TestPreBackup_LabelConstantValues(t *testing.T) {
 		},
 	}
 
-	for _, testCase := range cases {
-		t.Run(testCase.name, func(t *testing.T) {
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			if testCase.got != testCase.want {
-				t.Errorf("want %q, got %q", testCase.want, testCase.got)
+			if test.got != test.want {
+				t.Errorf("want %q, got %q", test.want, test.got)
 			}
 		})
 	}

@@ -79,14 +79,5 @@ func TestVerify_MissingRepo(t *testing.T) {
 
 	verifyResult := runConba(t, cfg, "verify")
 
-	if verifyResult.Err != nil {
-		t.Fatalf("conba verify: unexpected start error: %v", verifyResult.Err)
-	}
-
-	if verifyResult.ExitCode == 0 {
-		t.Fatalf(
-			"missing-repo: conba verify exited 0, want non-zero; stdout=%q stderr=%q",
-			verifyResult.Stdout, verifyResult.Stderr,
-		)
-	}
+	requireFailure(t, verifyResult, "conba verify")
 }

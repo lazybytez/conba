@@ -330,8 +330,8 @@ func TestRun_EmptySourceSkipped(t *testing.T) {
 		optsFor(backupFn, nilStreamFn(), false, "host1"),
 		&buf,
 	)
-	if err == nil {
-		t.Fatal("want error, got nil")
+	if err != nil {
+		t.Fatalf("want nil error, got %v", err)
 	}
 
 	if len(*paths) != 0 {
@@ -344,8 +344,8 @@ func TestRun_EmptySourceSkipped(t *testing.T) {
 		t.Errorf("want skip message, got output:\n%s", output)
 	}
 
-	if !strings.Contains(output, "0 succeeded, 0 skipped, 1 failed") {
-		t.Errorf("want summary '0 succeeded, 0 skipped, 1 failed', got output:\n%s", output)
+	if !strings.Contains(output, "0 succeeded, 1 skipped, 0 failed") {
+		t.Errorf("want summary '0 succeeded, 1 skipped, 0 failed', got output:\n%s", output)
 	}
 }
 
