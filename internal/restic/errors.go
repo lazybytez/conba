@@ -20,6 +20,10 @@ var (
 	// (does not exist, permission denied) and the target should be skipped
 	// rather than counted as a failure.
 	ErrSourceUnreadable = errors.New("backup source unreadable")
+
+	// ErrRepoAlreadyInitialized indicates an init attempt against a
+	// repository that already exists, which Init treats as a no-op.
+	ErrRepoAlreadyInitialized = errors.New("repository already initialized")
 )
 
 // Known restic stderr patterns used to classify errors.
@@ -29,6 +33,8 @@ const (
 	msgRepoUnset     = "Please specify repository location"
 	msgLockFailed    = "unable to create lock"
 	msgAlreadyLocked = "repository is already locked"
+	msgAlreadyInit   = "already initialized"
+	msgConfigExists  = "config file already exists"
 )
 
 // ClassifyError inspects a restic error and returns a sentinel error
@@ -46,6 +52,8 @@ func ClassifyError(err error) error {
 		return ErrRepoNotInitialized
 	case stringutil.ContainsAny(msg, msgLockFailed, msgAlreadyLocked):
 		return ErrRepoLocked
+	case stringutil.ContainsAny(msg, msgAlreadyInit, msgConfigExists):
+		return ErrRepoAlreadyInitialized
 	default:
 		return err
 	}

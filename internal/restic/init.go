@@ -2,8 +2,8 @@ package restic
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"strings"
 )
 
 // Init initialises the restic repository. If the repository is already
@@ -14,8 +14,7 @@ func (c *Client) Init(ctx context.Context) error {
 		return nil
 	}
 
-	if strings.Contains(err.Error(), "already initialized") ||
-		strings.Contains(err.Error(), "config file already exists") {
+	if errors.Is(ClassifyError(err), ErrRepoAlreadyInitialized) {
 		return nil
 	}
 
