@@ -111,7 +111,13 @@ func BuildStatsArgs() []string {
 
 // BuildDiffArgs returns the argument slice for diffing two snapshots.
 // Snapshot identifiers may be full IDs, short IDs, or the literal "latest".
-func BuildDiffArgs(snapA, snapB string) []string {
+// When asJSON is true restic emits one JSON record per change plus a final
+// statistics record.
+func BuildDiffArgs(snapA, snapB string, asJSON bool) []string {
+	if asJSON {
+		return []string{"diff", "--json", snapA, snapB}
+	}
+
 	return []string{"diff", snapA, snapB}
 }
 

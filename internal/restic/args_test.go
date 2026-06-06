@@ -468,18 +468,23 @@ func TestBuildDiffArgs(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name  string
-		snapA string
-		snapB string
-		want  []string
+		name   string
+		snapA  string
+		snapB  string
+		asJSON bool
+		want   []string
 	}{
 		{
-			name: "two short ids", snapA: "abc", snapB: "def",
+			name: "two short ids", snapA: "abc", snapB: "def", asJSON: false,
 			want: []string{"diff", "abc", "def"},
 		},
 		{
-			name: "passthrough verbatim", snapA: "first-id", snapB: "latest",
+			name: "passthrough verbatim", snapA: "first-id", snapB: "latest", asJSON: false,
 			want: []string{"diff", "first-id", "latest"},
+		},
+		{
+			name: "json adds flag", snapA: "abc", snapB: "def", asJSON: true,
+			want: []string{"diff", "--json", "abc", "def"},
 		},
 	}
 
@@ -487,10 +492,10 @@ func TestBuildDiffArgs(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := restic.BuildDiffArgs(test.snapA, test.snapB)
+			got := restic.BuildDiffArgs(test.snapA, test.snapB, test.asJSON)
 			if !slices.Equal(got, test.want) {
-				t.Errorf("BuildDiffArgs(%q, %q) = %v, want %v",
-					test.snapA, test.snapB, got, test.want)
+				t.Errorf("BuildDiffArgs(%q, %q, %v) = %v, want %v",
+					test.snapA, test.snapB, test.asJSON, got, test.want)
 			}
 		})
 	}
