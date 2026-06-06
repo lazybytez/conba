@@ -19,10 +19,12 @@ const (
 	LogLevelError = "error"
 )
 
-// Supported log formats.
+// Supported output formats. "auto" selects text on a terminal and json
+// otherwise; text and json force the respective mode.
 const (
-	LogFormatHuman = "human"
-	LogFormatJSON  = "json"
+	OutputFormatAuto = "auto"
+	OutputFormatText = "text"
+	OutputFormatJSON = "json"
 )
 
 // Supported runtime types.
@@ -39,8 +41,8 @@ const DefaultResticBinary = "restic"
 // ErrInvalidLogLevel indicates a log level value that is not supported.
 var ErrInvalidLogLevel = errors.New("invalid log level")
 
-// ErrInvalidLogFormat indicates a log format value that is not supported.
-var ErrInvalidLogFormat = errors.New("invalid log format")
+// ErrInvalidOutputFormat indicates an output format value that is not supported.
+var ErrInvalidOutputFormat = errors.New("invalid output format")
 
 // ErrInvalidFilterPattern indicates a regex pattern that failed to compile.
 var ErrInvalidFilterPattern = errors.New("invalid filter pattern")
@@ -62,6 +64,7 @@ var ErrMissingPassword = errors.New(
 // Config is the top-level configuration structure for conba.
 type Config struct {
 	Logging           LoggingConfig           `mapstructure:"logging"`
+	Output            OutputConfig            `mapstructure:"output"`
 	Runtime           RuntimeConfig           `mapstructure:"runtime"`
 	Discovery         DiscoveryConfig         `mapstructure:"discovery"`
 	Restic            ResticConfig            `mapstructure:"restic"`
@@ -153,7 +156,12 @@ type DockerConfig struct {
 
 // LoggingConfig holds logging-related configuration values.
 type LoggingConfig struct {
-	Level  string `mapstructure:"level"`
+	Level string `mapstructure:"level"`
+}
+
+// OutputConfig holds command-output rendering configuration. Format drives
+// both the result stream and the diagnostic logger encoding.
+type OutputConfig struct {
 	Format string `mapstructure:"format"`
 }
 
@@ -227,7 +235,7 @@ func readConfigFile(viperInstance *viper.Viper, cfgFile string) error {
 // silently leaves the field empty.
 func setDefaults(viperInstance *viper.Viper) {
 	viperInstance.SetDefault("logging.level", LogLevelInfo)
-	viperInstance.SetDefault("logging.format", LogFormatHuman)
+	viperInstance.SetDefault("output.format", OutputFormatAuto)
 	viperInstance.SetDefault("runtime.type", RuntimeTypeDocker)
 	viperInstance.SetDefault("runtime.docker.host", DefaultDockerHost)
 	viperInstance.SetDefault("discovery.opt_in_only", false)
@@ -254,14 +262,14 @@ func (c *Config) validate() error {
 		)
 	}
 
-	switch c.Logging.Format {
-	case LogFormatHuman, LogFormatJSON:
+	switch c.Output.Format {
+	case OutputFormatAuto, OutputFormatText, OutputFormatJSON:
 	default:
 		return fmt.Errorf(
-			"%w: %q must be one of %s, %s",
-			ErrInvalidLogFormat,
-			c.Logging.Format,
-			LogFormatHuman, LogFormatJSON,
+			"%w: %q must be one of %s, %s, %s",
+			ErrInvalidOutputFormat,
+			c.Output.Format,
+			OutputFormatAuto, OutputFormatText, OutputFormatJSON,
 		)
 	}
 

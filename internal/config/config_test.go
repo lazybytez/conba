@@ -22,8 +22,8 @@ func TestLoadDefaults(t *testing.T) {
 		t.Errorf("Logging.Level = %q, want %q", cfg.Logging.Level, config.LogLevelInfo)
 	}
 
-	if cfg.Logging.Format != config.LogFormatHuman {
-		t.Errorf("Logging.Format = %q, want %q", cfg.Logging.Format, config.LogFormatHuman)
+	if cfg.Output.Format != config.OutputFormatAuto {
+		t.Errorf("Output.Format = %q, want %q", cfg.Output.Format, config.OutputFormatAuto)
 	}
 
 	if cfg.Runtime.Type != config.RuntimeTypeDocker {
@@ -89,7 +89,7 @@ func TestLoadFromYAMLFile(t *testing.T) {
 
 	dir := t.TempDir()
 	cfgFile := filepath.Join(dir, "conba.yaml")
-	content := []byte("logging:\n  level: debug\n  format: json\n")
+	content := []byte("logging:\n  level: debug\noutput:\n  format: json\n")
 
 	writeErr := os.WriteFile(cfgFile, content, 0o600)
 	if writeErr != nil {
@@ -105,8 +105,8 @@ func TestLoadFromYAMLFile(t *testing.T) {
 		t.Errorf("Logging.Level = %q, want %q", cfg.Logging.Level, config.LogLevelDebug)
 	}
 
-	if cfg.Logging.Format != config.LogFormatJSON {
-		t.Errorf("Logging.Format = %q, want %q", cfg.Logging.Format, config.LogFormatJSON)
+	if cfg.Output.Format != config.OutputFormatJSON {
+		t.Errorf("Output.Format = %q, want %q", cfg.Output.Format, config.OutputFormatJSON)
 	}
 }
 
@@ -122,8 +122,8 @@ func TestLoadEnvOverride(t *testing.T) {
 		t.Errorf("Logging.Level = %q, want %q", cfg.Logging.Level, config.LogLevelDebug)
 	}
 
-	if cfg.Logging.Format != config.LogFormatHuman {
-		t.Errorf("Logging.Format = %q, want %q", cfg.Logging.Format, config.LogFormatHuman)
+	if cfg.Output.Format != config.OutputFormatAuto {
+		t.Errorf("Output.Format = %q, want %q", cfg.Output.Format, config.OutputFormatAuto)
 	}
 }
 
@@ -137,23 +137,23 @@ func TestLoadValidation(t *testing.T) {
 	}{
 		{
 			name:    "invalid level trace",
-			yaml:    "logging:\n  level: trace\n  format: json\n",
+			yaml:    "logging:\n  level: trace\n",
 			wantErr: config.ErrInvalidLogLevel,
 		},
 		{
 			name:    "invalid level fatal",
-			yaml:    "logging:\n  level: fatal\n  format: json\n",
+			yaml:    "logging:\n  level: fatal\n",
 			wantErr: config.ErrInvalidLogLevel,
 		},
 		{
-			name:    "invalid format text",
-			yaml:    "logging:\n  level: info\n  format: text\n",
-			wantErr: config.ErrInvalidLogFormat,
+			name:    "invalid output format xml",
+			yaml:    "output:\n  format: xml\n",
+			wantErr: config.ErrInvalidOutputFormat,
 		},
 		{
-			name:    "invalid format xml",
-			yaml:    "logging:\n  level: info\n  format: xml\n",
-			wantErr: config.ErrInvalidLogFormat,
+			name:    "invalid output format human",
+			yaml:    "output:\n  format: human\n",
+			wantErr: config.ErrInvalidOutputFormat,
 		},
 		{
 			name:    "invalid runtime type podman",

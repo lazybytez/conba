@@ -4,15 +4,21 @@ package cli
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/lazybytez/conba/internal/config"
 	"github.com/lazybytez/conba/internal/logging"
+	"github.com/lazybytez/conba/internal/report"
 	"github.com/spf13/cobra"
 )
 
 // NewRootCommand creates the root conba command with all subcommands registered.
 func NewRootCommand() *cobra.Command {
-	var cfgFile string
+	var (
+		cfgFile      string
+		outputFormat string
+		noColor      bool
+	)
 
 	cmd := &cobra.Command{
 		Use:   "conba",
@@ -27,13 +33,19 @@ func NewRootCommand() *cobra.Command {
 				return fmt.Errorf("load config: %w", err)
 			}
 
-			logger, err := logging.New(cfg.Logging)
+			mode, color := report.Resolve(outputFormat, cfg.Output.Format, os.Stdout)
+			if noColor {
+				color = false
+			}
+
+			logger, err := logging.New(cfg.Logging.Level, mode == report.ModeJSON, color)
 			if err != nil {
 				return fmt.Errorf("init logger: %w", err)
 			}
 
 			ctx := config.WithConfig(cmd.Context(), cfg)
 			ctx = logging.WithLogger(ctx, logger)
+			ctx = report.WithReporter(ctx, report.New(mode, cmd.OutOrStdout(), color))
 			cmd.SetContext(ctx)
 
 			return nil
@@ -41,6 +53,9 @@ func NewRootCommand() *cobra.Command {
 	}
 
 	cmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "path to config file")
+	cmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", "",
+		"output format: text or json (default: auto-detect by terminal)")
+	cmd.PersistentFlags().BoolVar(&noColor, "no-color", false, "disable colored output")
 	cmd.AddCommand(NewVersionCommand())
 	cmd.AddCommand(NewInitCommand())
 	cmd.AddCommand(NewInspectCommand())

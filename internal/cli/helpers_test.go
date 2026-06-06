@@ -14,9 +14,9 @@ import (
 func testConfigWithRestic(resticCfg config.ResticConfig) *config.Config {
 	return &config.Config{
 		Logging: config.LoggingConfig{
-			Level:  config.LogLevelInfo,
-			Format: config.LogFormatHuman,
+			Level: config.LogLevelInfo,
 		},
+		Output: config.OutputConfig{Format: config.OutputFormatAuto},
 		Runtime: config.RuntimeConfig{
 			Type: config.RuntimeTypeDocker,
 			Docker: config.DockerConfig{

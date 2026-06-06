@@ -11,7 +11,8 @@ func TestWithConfigAndFromContext(t *testing.T) {
 	t.Parallel()
 
 	cfg := &config.Config{
-		Logging: config.LoggingConfig{Level: config.LogLevelInfo, Format: config.LogFormatHuman},
+		Logging: config.LoggingConfig{Level: config.LogLevelInfo},
+		Output:  config.OutputConfig{Format: config.OutputFormatAuto},
 		Runtime: config.RuntimeConfig{
 			Type:   config.RuntimeTypeDocker,
 			Docker: config.DockerConfig{Host: ""},

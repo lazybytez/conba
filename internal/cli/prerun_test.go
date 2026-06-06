@@ -19,6 +19,7 @@ func writeMinimalConfig(t *testing.T, dir string) string {
 
 	content := []byte(`logging:
   level: info
+output:
   format: json
 runtime:
   type: docker
@@ -79,8 +80,8 @@ func TestPersistentPreRunE_LoadsConfig(t *testing.T) {
 		t.Errorf("config level = %q, want %q", cfg.Logging.Level, "info")
 	}
 
-	if cfg.Logging.Format != "json" {
-		t.Errorf("config format = %q, want %q", cfg.Logging.Format, "json")
+	if cfg.Output.Format != "json" {
+		t.Errorf("config output format = %q, want %q", cfg.Output.Format, "json")
 	}
 }
 

@@ -70,6 +70,31 @@ func TestNewRootCommand_HasConfigFlag(t *testing.T) {
 	}
 }
 
+func TestNewRootCommand_HasOutputFlag(t *testing.T) {
+	t.Parallel()
+
+	cmd := cli.NewRootCommand()
+
+	flag := cmd.PersistentFlags().Lookup("output")
+	if flag == nil {
+		t.Fatal("persistent flag --output must exist")
+	}
+
+	if flag.Shorthand != "o" {
+		t.Errorf("output shorthand = %q, want %q", flag.Shorthand, "o")
+	}
+}
+
+func TestNewRootCommand_HasNoColorFlag(t *testing.T) {
+	t.Parallel()
+
+	cmd := cli.NewRootCommand()
+
+	if cmd.PersistentFlags().Lookup("no-color") == nil {
+		t.Fatal("persistent flag --no-color must exist")
+	}
+}
+
 func TestNewRootCommand_HasVersionSubcommand(t *testing.T) {
 	t.Parallel()
 

@@ -3,7 +3,6 @@ package logging_test
 import (
 	"testing"
 
-	"github.com/lazybytez/conba/internal/config"
 	"github.com/lazybytez/conba/internal/logging"
 )
 
@@ -11,29 +10,27 @@ func TestNew(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name    string
-		cfg     config.LoggingConfig
-		wantErr bool
+		name       string
+		level      string
+		jsonFormat bool
+		color      bool
+		wantErr    bool
 	}{
 		{
-			name:    "human info",
-			cfg:     config.LoggingConfig{Level: "info", Format: "human"},
-			wantErr: false,
+			name: "text info", level: "info",
+			jsonFormat: false, color: false, wantErr: false,
 		},
 		{
-			name:    "human debug",
-			cfg:     config.LoggingConfig{Level: "debug", Format: "human"},
-			wantErr: false,
+			name: "text debug colored", level: "debug",
+			jsonFormat: false, color: true, wantErr: false,
 		},
 		{
-			name:    "json info",
-			cfg:     config.LoggingConfig{Level: "info", Format: "json"},
-			wantErr: false,
+			name: "json info", level: "info",
+			jsonFormat: true, color: false, wantErr: false,
 		},
 		{
-			name:    "invalid level",
-			cfg:     config.LoggingConfig{Level: "trace", Format: "human"},
-			wantErr: true,
+			name: "invalid level", level: "trace",
+			jsonFormat: false, color: false, wantErr: true,
 		},
 	}
 
@@ -41,7 +38,7 @@ func TestNew(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			logger, err := logging.New(test.cfg)
+			logger, err := logging.New(test.level, test.jsonFormat, test.color)
 
 			if test.wantErr {
 				if err == nil {

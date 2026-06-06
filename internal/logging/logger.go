@@ -1,34 +1,34 @@
-// Package logging creates configured zap loggers from conba's logging config.
+// Package logging creates configured zap loggers for conba's diagnostic
+// output on stderr.
 package logging
 
 import (
 	"fmt"
 
-	"github.com/lazybytez/conba/internal/config"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
-// New creates a zap.Logger from the given logging configuration.
-// It returns an error if the level string cannot be parsed.
-func New(cfg config.LoggingConfig) (*zap.Logger, error) {
-	level, err := zapcore.ParseLevel(cfg.Level)
+// New creates a zap.Logger at the given level. When jsonFormat is true it
+// uses a JSON encoder; otherwise a console encoder, colored only when color
+// is true. It returns an error if the level string cannot be parsed.
+func New(level string, jsonFormat, color bool) (*zap.Logger, error) {
+	parsedLevel, err := zapcore.ParseLevel(level)
 	if err != nil {
-		return nil, fmt.Errorf("parsing log level %q: %w", cfg.Level, err)
+		return nil, fmt.Errorf("parsing log level %q: %w", level, err)
 	}
 
 	var zapCfg zap.Config
 
-	switch cfg.Format {
-	case config.LogFormatJSON:
+	if jsonFormat {
 		zapCfg = zap.NewProductionConfig()
-	default:
+	} else {
 		zapCfg = zap.NewDevelopmentConfig()
-		zapCfg.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 		zapCfg.DisableStacktrace = true
+		zapCfg.EncoderConfig.EncodeLevel = levelEncoder(color)
 	}
 
-	zapCfg.Level = zap.NewAtomicLevelAt(level)
+	zapCfg.Level = zap.NewAtomicLevelAt(parsedLevel)
 
 	logger, err := zapCfg.Build()
 	if err != nil {
@@ -36,4 +36,12 @@ func New(cfg config.LoggingConfig) (*zap.Logger, error) {
 	}
 
 	return logger, nil
+}
+
+func levelEncoder(color bool) zapcore.LevelEncoder {
+	if color {
+		return zapcore.CapitalColorLevelEncoder
+	}
+
+	return zapcore.CapitalLevelEncoder
 }
