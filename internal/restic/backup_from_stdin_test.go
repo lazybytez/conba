@@ -106,7 +106,7 @@ func newStreamTestClient(t *testing.T) *restic.Client {
 
 	binary, err := exec.LookPath("restic")
 	if err != nil {
-		t.Fatal("restic binary not found in PATH")
+		t.Skipf("restic binary not found in PATH, this test requires it: %v", err)
 	}
 
 	repoPath := filepath.Join(t.TempDir(), "repo")

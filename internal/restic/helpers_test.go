@@ -26,7 +26,7 @@ func newTestClient(t *testing.T, repoPath string, password string) *restic.Clien
 
 	binary, err := exec.LookPath("restic")
 	if err != nil {
-		t.Fatal("restic binary not found in PATH")
+		t.Skipf("restic binary not found in PATH, this test requires it: %v", err)
 	}
 
 	cfg := config.ResticConfig{
