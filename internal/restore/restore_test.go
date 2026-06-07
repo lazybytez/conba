@@ -11,8 +11,17 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/lazybytez/conba/internal/report"
 	"github.com/lazybytez/conba/internal/restore"
 )
+
+// textReporter builds a text-mode reporter writing to buf, so tests can
+// assert on the human output of restore operations.
+//
+//nolint:ireturn // test helper returns the Reporter abstraction by design.
+func textReporter(buf *bytes.Buffer) report.Reporter {
+	return report.New(report.ModeText, buf, false)
+}
 
 var (
 	errRestore = errors.New("restore boom")
@@ -153,7 +162,7 @@ func TestRunVolume_DryRunInvokesRestoreFnAndPrints(t *testing.T) {
 		Command:    "",
 		DryRun:     true,
 		Force:      false,
-		Out:        &buf,
+		Reporter:   textReporter(&buf),
 	}
 
 	err := restore.RunVolume(context.Background(), opts, restoreFn)
@@ -198,7 +207,7 @@ func TestRunVolume_DryRunPropagatesError(t *testing.T) {
 		Command:    "",
 		DryRun:     true,
 		Force:      false,
-		Out:        &buf,
+		Reporter:   textReporter(&buf),
 	}
 
 	err := restore.RunVolume(context.Background(), opts, restoreFn)
@@ -225,7 +234,7 @@ func TestRunVolume_LiveTargetEmpty_RestoreFnInvoked(t *testing.T) {
 		Command:    "",
 		DryRun:     false,
 		Force:      false,
-		Out:        io.Discard,
+		Reporter:   report.Nop(),
 	}
 
 	err := restore.RunVolume(context.Background(), opts, restoreFn)
@@ -266,7 +275,7 @@ func TestRunVolume_LiveTargetNonEmpty_NoForce_ErrDestinationNotEmpty(t *testing.
 		Command:    "",
 		DryRun:     false,
 		Force:      false,
-		Out:        io.Discard,
+		Reporter:   report.Nop(),
 	}
 
 	gotErr := restore.RunVolume(context.Background(), opts, restoreFn)
@@ -303,7 +312,7 @@ func TestRunVolume_LiveTargetNonEmpty_Force_RestoreFnInvoked(t *testing.T) {
 		Command:    "",
 		DryRun:     false,
 		Force:      true,
-		Out:        io.Discard,
+		Reporter:   report.Nop(),
 	}
 
 	gotErr := restore.RunVolume(context.Background(), opts, restoreFn)
@@ -332,7 +341,7 @@ func TestRunVolume_LiveTargetMissing_RestoreFnInvoked(t *testing.T) {
 		Command:    "",
 		DryRun:     false,
 		Force:      false,
-		Out:        io.Discard,
+		Reporter:   report.Nop(),
 	}
 
 	gotErr := restore.RunVolume(context.Background(), opts, restoreFn)
@@ -359,7 +368,7 @@ func TestRunVolume_RestoreFnError_Wrapped(t *testing.T) {
 		Command:    "",
 		DryRun:     false,
 		Force:      false,
-		Out:        io.Discard,
+		Reporter:   report.Nop(),
 	}
 
 	gotErr := restore.RunVolume(context.Background(), opts, restoreFn)
@@ -390,7 +399,7 @@ func TestRunStream_ContainerNotRunning_ErrContainerNotRunning(t *testing.T) {
 		Command:    "mysql",
 		DryRun:     false,
 		Force:      false,
-		Out:        &buf,
+		Reporter:   textReporter(&buf),
 	}
 
 	err := restore.RunStream(context.Background(), opts, dumpFn, runtime)
@@ -425,7 +434,7 @@ func TestRunStream_ContainerRunningError_Wrapped(t *testing.T) {
 		Command:    "mysql",
 		DryRun:     false,
 		Force:      false,
-		Out:        io.Discard,
+		Reporter:   report.Nop(),
 	}
 
 	err := restore.RunStream(context.Background(), opts, dumpFn, runtime)
@@ -454,7 +463,7 @@ func TestRunStream_DryRun_PrintsAndDoesNotInvoke(t *testing.T) {
 		Command:    "mysql -uroot",
 		DryRun:     true,
 		Force:      false,
-		Out:        &buf,
+		Reporter:   textReporter(&buf),
 	}
 
 	err := restore.RunStream(context.Background(), opts, dumpFn, runtime)
@@ -492,7 +501,7 @@ func TestRunStream_LivePath_BuildsArgvAndPipesPayload(t *testing.T) {
 		Command:    "mysql -uroot",
 		DryRun:     false,
 		Force:      false,
-		Out:        io.Discard,
+		Reporter:   report.Nop(),
 	}
 
 	err := restore.RunStream(context.Background(), opts, dumpFn, runtime)
@@ -544,7 +553,7 @@ func TestRunStream_DumpFnError_WrappedWithDumpPhase(t *testing.T) {
 		Command:    "mysql",
 		DryRun:     false,
 		Force:      false,
-		Out:        io.Discard,
+		Reporter:   report.Nop(),
 	}
 
 	err := restore.RunStream(context.Background(), opts, dumpFn, runtime)
@@ -575,7 +584,7 @@ func TestRunStream_ExecError_WrappedWithExecPhase(t *testing.T) {
 		Command:    "mysql",
 		DryRun:     false,
 		Force:      false,
-		Out:        io.Discard,
+		Reporter:   report.Nop(),
 	}
 
 	err := restore.RunStream(context.Background(), opts, dumpFn, runtime)

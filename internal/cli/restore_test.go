@@ -13,6 +13,7 @@ import (
 
 	"github.com/lazybytez/conba/internal/cli"
 	"github.com/lazybytez/conba/internal/filter"
+	"github.com/lazybytez/conba/internal/report"
 	"github.com/lazybytez/conba/internal/restic"
 	"github.com/lazybytez/conba/internal/restore"
 	"github.com/lazybytez/conba/internal/runtime"
@@ -125,7 +126,7 @@ func TestRestoreCore_VolumeAndToCommand_Rejected(t *testing.T) {
 		AllHosts:         false,
 		DryRun:           false,
 		PreBackupEnabled: false,
-		Out:              io.Discard,
+		Reporter:         report.Nop(),
 	}
 
 	err := cli.RunRestoreCore(context.Background(), opts, deps)
@@ -157,7 +158,7 @@ func TestRestoreCore_ToAndToCommand_Rejected(t *testing.T) {
 		AllHosts:         false,
 		DryRun:           false,
 		PreBackupEnabled: false,
-		Out:              io.Discard,
+		Reporter:         report.Nop(),
 	}
 
 	err := cli.RunRestoreCore(context.Background(), opts, deps)
@@ -184,7 +185,7 @@ func TestRestoreCore_ForceWithoutTo_Rejected(t *testing.T) {
 		AllHosts:         false,
 		DryRun:           false,
 		PreBackupEnabled: false,
-		Out:              io.Discard,
+		Reporter:         report.Nop(),
 	}
 
 	err := cli.RunRestoreCore(context.Background(), opts, deps)
@@ -216,7 +217,7 @@ func TestRestoreCore_HostnameFilterAppliedByDefault(t *testing.T) {
 		AllHosts:         false,
 		DryRun:           true,
 		PreBackupEnabled: false,
-		Out:              io.Discard,
+		Reporter:         report.Nop(),
 	}
 
 	err := cli.RunRestoreCore(context.Background(), opts, deps)
@@ -246,7 +247,7 @@ func TestRestoreCore_AllHosts_DropsHostnameFilter(t *testing.T) {
 		AllHosts:         true,
 		DryRun:           true,
 		PreBackupEnabled: false,
-		Out:              io.Discard,
+		Reporter:         report.Nop(),
 	}
 
 	err := cli.RunRestoreCore(context.Background(), opts, deps)
@@ -278,7 +279,7 @@ func TestRestoreCore_VolumeFlag_AddedToFilter(t *testing.T) {
 		AllHosts:         false,
 		DryRun:           true,
 		PreBackupEnabled: false,
-		Out:              io.Discard,
+		Reporter:         report.Nop(),
 	}
 
 	err := cli.RunRestoreCore(context.Background(), opts, deps)
@@ -309,7 +310,7 @@ func TestRestoreCore_NoMatchingSnapshot_Error(t *testing.T) {
 		AllHosts:         false,
 		DryRun:           false,
 		PreBackupEnabled: false,
-		Out:              io.Discard,
+		Reporter:         report.Nop(),
 	}
 
 	err := cli.RunRestoreCore(context.Background(), opts, deps)
@@ -345,7 +346,7 @@ func TestRestoreCore_ExplicitSnapshotID_TagMismatch(t *testing.T) {
 		AllHosts:         false,
 		DryRun:           false,
 		PreBackupEnabled: false,
-		Out:              io.Discard,
+		Reporter:         report.Nop(),
 	}
 
 	err := cli.RunRestoreCore(context.Background(), opts, deps)
@@ -377,7 +378,7 @@ func TestRestoreCore_VolumeMode_RequiresTo(t *testing.T) {
 		AllHosts:         false,
 		DryRun:           false,
 		PreBackupEnabled: false,
-		Out:              io.Discard,
+		Reporter:         report.Nop(),
 	}
 
 	err := cli.RunRestoreCore(context.Background(), opts, deps)
@@ -408,7 +409,7 @@ func TestRestoreCore_VolumeMode_HappyPath_DryRun(t *testing.T) {
 		AllHosts:         false,
 		DryRun:           true,
 		PreBackupEnabled: false,
-		Out:              io.Discard,
+		Reporter:         report.Nop(),
 	}
 
 	err := cli.RunRestoreCore(context.Background(), opts, deps)
@@ -454,7 +455,7 @@ func TestRestoreCore_VolumeMode_RejectsToCommand(t *testing.T) {
 		AllHosts:         false,
 		DryRun:           false,
 		PreBackupEnabled: false,
-		Out:              io.Discard,
+		Reporter:         report.Nop(),
 	}
 
 	err := cli.RunRestoreCore(context.Background(), opts, deps)
@@ -489,7 +490,7 @@ func TestRestoreCore_VolumeMode_MultipleVolumes_RequiresVolumeFlag(t *testing.T)
 		AllHosts:         false,
 		DryRun:           false,
 		PreBackupEnabled: false,
-		Out:              io.Discard,
+		Reporter:         report.Nop(),
 	}
 
 	err := cli.RunRestoreCore(context.Background(), opts, deps)
@@ -527,7 +528,7 @@ func TestRestoreCore_StreamMode_RejectsTo(t *testing.T) {
 		AllHosts:         false,
 		DryRun:           false,
 		PreBackupEnabled: false,
-		Out:              io.Discard,
+		Reporter:         report.Nop(),
 	}
 
 	err := cli.RunRestoreCore(context.Background(), opts, deps)
@@ -560,7 +561,7 @@ func TestRestoreCore_StreamMode_NoPath(t *testing.T) {
 		AllHosts:         false,
 		DryRun:           true,
 		PreBackupEnabled: false,
-		Out:              io.Discard,
+		Reporter:         report.Nop(),
 	}
 
 	err := cli.RunRestoreCore(context.Background(), opts, deps)
@@ -592,7 +593,7 @@ func TestRestoreCore_StreamMode_RejectsVolume(t *testing.T) {
 		AllHosts:         false,
 		DryRun:           false,
 		PreBackupEnabled: false,
-		Out:              io.Discard,
+		Reporter:         report.Nop(),
 	}
 
 	err := cli.RunRestoreCore(context.Background(), opts, deps)
@@ -637,7 +638,7 @@ func TestRestoreCore_StreamMode_FlagWinsOverLabel(t *testing.T) {
 		AllHosts:         false,
 		DryRun:           true,
 		PreBackupEnabled: true,
-		Out:              &buf,
+		Reporter:         report.New(report.ModeText, &buf, false),
 	}
 
 	err := cli.RunRestoreCore(context.Background(), opts, deps)
@@ -690,7 +691,7 @@ func TestRestoreCore_StreamMode_LabelUsedWhenFeatureEnabled(t *testing.T) {
 		AllHosts:         false,
 		DryRun:           true,
 		PreBackupEnabled: true,
-		Out:              &buf,
+		Reporter:         report.New(report.ModeText, &buf, false),
 	}
 
 	err := cli.RunRestoreCore(context.Background(), opts, deps)
@@ -737,7 +738,7 @@ func TestRestoreCore_StreamMode_LabelIgnoredWhenFeatureDisabled(t *testing.T) {
 		AllHosts:         false,
 		DryRun:           false,
 		PreBackupEnabled: false,
-		Out:              io.Discard,
+		Reporter:         report.Nop(),
 	}
 
 	err := cli.RunRestoreCore(context.Background(), opts, deps)
@@ -777,7 +778,7 @@ func TestRestoreCore_StreamMode_NoCommandAvailable(t *testing.T) {
 		AllHosts:         false,
 		DryRun:           false,
 		PreBackupEnabled: true,
-		Out:              io.Discard,
+		Reporter:         report.Nop(),
 	}
 
 	err := cli.RunRestoreCore(context.Background(), opts, deps)
@@ -809,7 +810,7 @@ func TestRestoreCore_StreamMode_HappyPathLive(t *testing.T) {
 		AllHosts:         false,
 		DryRun:           false,
 		PreBackupEnabled: false,
-		Out:              io.Discard,
+		Reporter:         report.Nop(),
 	}
 
 	err := cli.RunRestoreCore(context.Background(), opts, deps)
@@ -862,7 +863,7 @@ func TestRestoreCore_DestinationNotEmpty_FriendlyMessage(t *testing.T) {
 		AllHosts:         false,
 		DryRun:           false,
 		PreBackupEnabled: false,
-		Out:              io.Discard,
+		Reporter:         report.Nop(),
 	}
 
 	err := cli.RunRestoreCore(context.Background(), opts, deps)
@@ -899,7 +900,7 @@ func TestRestoreCore_ContainerNotRunning_FriendlyMessage(t *testing.T) {
 		AllHosts:         false,
 		DryRun:           false,
 		PreBackupEnabled: false,
-		Out:              io.Discard,
+		Reporter:         report.Nop(),
 	}
 
 	err := cli.RunRestoreCore(context.Background(), opts, deps)

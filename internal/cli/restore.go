@@ -14,6 +14,7 @@ import (
 	"github.com/lazybytez/conba/internal/discovery"
 	"github.com/lazybytez/conba/internal/filter"
 	"github.com/lazybytez/conba/internal/logging"
+	"github.com/lazybytez/conba/internal/report"
 	"github.com/lazybytez/conba/internal/restic"
 	"github.com/lazybytez/conba/internal/restore"
 	"github.com/lazybytez/conba/internal/runtime"
@@ -85,8 +86,8 @@ type RestoreCoreOptions struct {
 	DryRun bool
 	// PreBackupEnabled mirrors config.PreBackupCommands.Enabled.
 	PreBackupEnabled bool
-	// Out receives human-readable progress lines.
-	Out io.Writer
+	// Reporter receives progress events (human text or json).
+	Reporter report.Reporter
 }
 
 // RestoreCoreDeps abstracts the side-effects RunRestoreCore performs so
@@ -175,7 +176,7 @@ func runRestore(cmd *cobra.Command, _ []string) error {
 		AllHosts:         flagBool(cmd.Flags(), "all-hosts"),
 		DryRun:           flagBool(cmd.Flags(), "dry-run"),
 		PreBackupEnabled: cfg.PreBackupCommands.Enabled,
-		Out:              cmd.OutOrStdout(),
+		Reporter:         report.FromContext(ctx),
 	}
 
 	return RunRestoreCore(ctx, opts, deps)
@@ -318,12 +319,26 @@ func runVolumeRestore(
 		Command:    "",
 		DryRun:     opts.DryRun,
 		Force:      opts.Force,
-		Out:        opts.Out,
+		Reporter:   opts.Reporter,
 	}
 
 	err := restore.RunVolume(ctx, runOpts, deps.Restore)
 	if err != nil {
 		return mapVolumeError(err, opts.To)
+	}
+
+	if !opts.DryRun {
+		opts.Reporter.Emit(report.Event{
+			Level:   report.LevelInfo,
+			Style:   report.StyleSuccess,
+			Name:    "restore.done",
+			Message: fmt.Sprintf("Restored snapshot %s to %s", snap.ID, opts.To),
+			Fields: []report.Field{
+				report.F("snapshot", snap.ID),
+				report.F("mode", "volume"),
+				report.F("target", opts.To),
+			},
+		})
 	}
 
 	return nil
@@ -425,7 +440,7 @@ func runStreamRestore(
 		Command:    command,
 		DryRun:     opts.DryRun,
 		Force:      false,
-		Out:        opts.Out,
+		Reporter:   opts.Reporter,
 	}
 
 	if opts.DryRun {
@@ -439,6 +454,18 @@ func runStreamRestore(
 	if err != nil {
 		return mapStreamError(err, opts.Container)
 	}
+
+	opts.Reporter.Emit(report.Event{
+		Level:   report.LevelInfo,
+		Style:   report.StyleSuccess,
+		Name:    "restore.done",
+		Message: fmt.Sprintf("Restored snapshot %s into container %s", snap.ID, opts.Container),
+		Fields: []report.Field{
+			report.F("snapshot", snap.ID),
+			report.F("mode", "stream"),
+			report.F("container", opts.Container),
+		},
+	})
 
 	return nil
 }
@@ -512,14 +539,21 @@ func runStreamDryRun(
 		return fmt.Errorf("%w: %s", restore.ErrContainerNotRunning, runOpts.Container)
 	}
 
-	_, _ = fmt.Fprintf(
-		runOpts.Out,
-		"would restore snapshot %s by piping %s into %s in container %s\n",
-		runOpts.SnapshotID,
-		runOpts.Filename,
-		runOpts.Command,
-		runOpts.Container,
-	)
+	runOpts.Reporter.Emit(report.Event{
+		Level: report.LevelInfo,
+		Name:  "restore.plan",
+		Message: fmt.Sprintf(
+			"would restore snapshot %s by piping %s into %s in container %s",
+			runOpts.SnapshotID, runOpts.Filename, runOpts.Command, runOpts.Container,
+		),
+		Fields: []report.Field{
+			report.F("snapshot", runOpts.SnapshotID),
+			report.F("mode", "stream"),
+			report.F("container", runOpts.Container),
+			report.F("command", runOpts.Command),
+			report.F("filename", runOpts.Filename),
+		},
+	})
 
 	return nil
 }

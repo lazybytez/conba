@@ -15,6 +15,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+
+	"github.com/lazybytez/conba/internal/report"
 )
 
 // Mode identifies which kind of snapshot is being restored.
@@ -84,8 +86,8 @@ type Options struct {
 	DryRun bool
 	// Force overrides the non-empty destination guard. Volume mode only.
 	Force bool
-	// Out receives human-readable progress lines.
-	Out io.Writer
+	// Reporter receives progress events (human text or json).
+	Reporter report.Reporter
 }
 
 // Sentinel errors. The CLI maps these via errors.Is to specific
@@ -111,12 +113,18 @@ func RunVolume(
 	restoreFn RestoreFunc,
 ) error {
 	if opts.DryRun {
-		_, _ = fmt.Fprintf(
-			opts.Out,
-			"would restore snapshot %s to %s\n",
-			opts.SnapshotID,
-			opts.TargetPath,
-		)
+		opts.Reporter.Emit(report.Event{
+			Level: report.LevelInfo,
+			Name:  "restore.plan",
+			Message: fmt.Sprintf(
+				"would restore snapshot %s to %s", opts.SnapshotID, opts.TargetPath,
+			),
+			Fields: []report.Field{
+				report.F("snapshot", opts.SnapshotID),
+				report.F("mode", "volume"),
+				report.F("target", opts.TargetPath),
+			},
+		})
 
 		err := restoreFn(ctx, opts.SnapshotID, opts.TargetPath, true)
 		if err != nil {
@@ -184,14 +192,21 @@ func RunStream(
 	cmd := []string{"sh", "-c", opts.Command}
 
 	if opts.DryRun {
-		_, _ = fmt.Fprintf(
-			opts.Out,
-			"would restore snapshot %s by piping %s into %s in container %s\n",
-			opts.SnapshotID,
-			opts.Filename,
-			opts.Command,
-			opts.Container,
-		)
+		opts.Reporter.Emit(report.Event{
+			Level: report.LevelInfo,
+			Name:  "restore.plan",
+			Message: fmt.Sprintf(
+				"would restore snapshot %s by piping %s into %s in container %s",
+				opts.SnapshotID, opts.Filename, opts.Command, opts.Container,
+			),
+			Fields: []report.Field{
+				report.F("snapshot", opts.SnapshotID),
+				report.F("mode", "stream"),
+				report.F("container", opts.Container),
+				report.F("command", opts.Command),
+				report.F("filename", opts.Filename),
+			},
+		})
 
 		return nil
 	}
