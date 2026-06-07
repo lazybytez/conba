@@ -4,16 +4,37 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 
 	"github.com/lazybytez/conba/internal/discovery"
 	"github.com/lazybytez/conba/internal/filter"
+	"github.com/lazybytez/conba/internal/report"
 	"github.com/lazybytez/conba/internal/restic"
 	"github.com/lazybytez/conba/internal/runtime"
 )
 
 // ErrTargetsFailed is returned by Run when one or more backup targets fail.
 var ErrTargetsFailed = errors.New("backup targets failed")
+
+// RunError reports how a backup cycle ended, carrying per-outcome counts so
+// callers can distinguish a partial failure from a total one. It satisfies
+// errors.Is(err, ErrTargetsFailed).
+type RunError struct {
+	Succeeded int
+	Skipped   int
+	Failed    int
+}
+
+// Error implements error.
+func (e *RunError) Error() string {
+	total := e.Succeeded + e.Skipped + e.Failed
+
+	return fmt.Sprintf("%d of %d target(s) failed", e.Failed, total)
+}
+
+// Is reports that a RunError matches the ErrTargetsFailed sentinel.
+func (e *RunError) Is(target error) bool {
+	return target == ErrTargetsFailed
+}
 
 // Func is the signature for a backup operation on a single path with tags.
 type Func func(ctx context.Context, path string, tags []string) error
@@ -54,22 +75,24 @@ func (c *counts) add(o targetOutcome) {
 	}
 }
 
-// Run executes backups for all targets sequentially, writing progress to out.
-// Targets are grouped by container so that the optional pre-backup stream
-// sub-operation runs at most once per labeled container per cycle.
+// Run executes backups for all targets sequentially, emitting progress and a
+// summary through reporter. Targets are grouped by container so that the
+// optional pre-backup stream sub-operation runs at most once per labeled
+// container per cycle.
 //
 // When opts.PreBackupEnabled is false, container labels are ignored and every
-// target is backed up via opts.BackupFn as a plain volume backup (existing
-// behaviour). When true, containers carrying the conba.pre-backup.* labels
-// dispatch through opts.StreamFn; volume sub-operations for those containers
-// are skipped (replace mode) or run alongside the stream (alongside mode).
+// target is backed up via opts.BackupFn as a plain volume backup. When true,
+// containers carrying the conba.pre-backup.* labels dispatch through
+// opts.StreamFn; volume sub-operations for those containers are skipped
+// (replace mode) or run alongside the stream (alongside mode).
 //
-// Returns a wrapped ErrTargetsFailed if any target failed.
+// Returns a *RunError (matchable via errors.Is(err, ErrTargetsFailed)) if any
+// target failed.
 func Run(
 	ctx context.Context,
 	targets []discovery.Target,
 	opts Options,
-	out io.Writer,
+	reporter report.Reporter,
 ) error {
 	if len(targets) == 0 {
 		return nil
@@ -78,19 +101,29 @@ func Run(
 	totals := counts{succeeded: 0, skipped: 0, failed: 0}
 
 	for _, group := range groupByContainer(targets) {
-		runGroup(ctx, group, opts, out, &totals)
+		runGroup(ctx, group, opts, reporter, &totals)
 	}
 
-	_, _ = fmt.Fprintf(
-		out,
-		"Backup complete: %d succeeded, %d skipped, %d failed.\n",
-		totals.succeeded,
-		totals.skipped,
-		totals.failed,
-	)
+	reporter.Emit(report.Event{
+		Level: report.LevelInfo,
+		Name:  "backup.summary",
+		Message: fmt.Sprintf(
+			"Backup complete: %d succeeded, %d skipped, %d failed.",
+			totals.succeeded, totals.skipped, totals.failed,
+		),
+		Fields: []report.Field{
+			report.F("succeeded", totals.succeeded),
+			report.F("skipped", totals.skipped),
+			report.F("failed", totals.failed),
+		},
+	})
 
 	if totals.failed > 0 {
-		return fmt.Errorf("%d target(s) failed: %w", totals.failed, ErrTargetsFailed)
+		return &RunError{
+			Succeeded: totals.succeeded,
+			Skipped:   totals.skipped,
+			Failed:    totals.failed,
+		}
 	}
 
 	return nil
@@ -125,11 +158,11 @@ func runGroup(
 	ctx context.Context,
 	group []discovery.Target,
 	opts Options,
-	out io.Writer,
+	reporter report.Reporter,
 	totals *counts,
 ) {
 	if !opts.PreBackupEnabled {
-		runVolumeOnly(ctx, group, opts.BackupFn, opts.Hostname, out, totals)
+		runVolumeOnly(ctx, group, opts.BackupFn, opts.Hostname, reporter, totals)
 
 		return
 	}
@@ -138,12 +171,19 @@ func runGroup(
 
 	spec, hasSpec, err := filter.PreBackup(first)
 	if err != nil {
-		_, _ = fmt.Fprintf(
-			out,
-			"Failed %s stream: invalid pre-backup labels: %v\n",
-			first.Container.Name,
-			err,
-		)
+		reporter.Emit(report.Event{
+			Level: report.LevelError,
+			Style: report.StyleError,
+			Name:  "backup.stream",
+			Message: fmt.Sprintf(
+				"Failed %s stream: invalid pre-backup labels: %v", first.Container.Name, err,
+			),
+			Fields: []report.Field{
+				report.F("container", first.Container.Name),
+				report.F("outcome", "failed"),
+				report.F("error", err.Error()),
+			},
+		})
 
 		totals.add(outcomeFailed)
 
@@ -151,23 +191,13 @@ func runGroup(
 	}
 
 	if !hasSpec {
-		runVolumeOnly(ctx, group, opts.BackupFn, opts.Hostname, out, totals)
+		runVolumeOnly(ctx, group, opts.BackupFn, opts.Hostname, reporter, totals)
 
 		return
 	}
 
-	runStreamOnce(
-		ctx,
-		spec,
-		first.Container.Name,
-		opts.Hostname,
-		opts.Execer,
-		opts.StreamFn,
-		out,
-		totals,
-	)
-
-	runVolumesForLabeledGroup(ctx, group, opts.BackupFn, spec, opts.Hostname, out, totals)
+	runStreamOnce(ctx, spec, first.Container.Name, opts, reporter, totals)
+	runVolumesForLabeledGroup(ctx, group, opts.BackupFn, spec, opts.Hostname, reporter, totals)
 }
 
 // runVolumeOnly performs a per-target volume backup loop without consulting
@@ -177,11 +207,11 @@ func runVolumeOnly(
 	group []discovery.Target,
 	backupFn Func,
 	hostname string,
-	out io.Writer,
+	reporter report.Reporter,
 	totals *counts,
 ) {
 	for _, target := range group {
-		totals.add(runTarget(ctx, target, backupFn, hostname, out))
+		totals.add(runTarget(ctx, target, backupFn, hostname, reporter))
 	}
 }
 
@@ -192,22 +222,39 @@ func runStreamOnce(
 	ctx context.Context,
 	spec filter.Spec,
 	containerName string,
-	hostname string,
-	execer runtime.CommandExecer,
-	streamFn StreamFunc,
-	out io.Writer,
+	opts Options,
+	reporter report.Reporter,
 	totals *counts,
 ) {
-	err := RunStream(ctx, spec, containerName, hostname, execer, streamFn)
+	err := RunStream(ctx, spec, containerName, opts.Hostname, opts.Execer, opts.StreamFn)
 	if err != nil {
-		_, _ = fmt.Fprintf(out, "Failed %s stream: %v\n", containerName, err)
+		reporter.Emit(report.Event{
+			Level:   report.LevelError,
+			Style:   report.StyleError,
+			Name:    "backup.stream",
+			Message: fmt.Sprintf("Failed %s stream: %v", containerName, err),
+			Fields: []report.Field{
+				report.F("container", containerName),
+				report.F("outcome", "failed"),
+				report.F("error", err.Error()),
+			},
+		})
 
 		totals.add(outcomeFailed)
 
 		return
 	}
 
-	_, _ = fmt.Fprintf(out, "Backed up %s stream\n", containerName)
+	reporter.Emit(report.Event{
+		Level:   report.LevelInfo,
+		Style:   report.StyleSuccess,
+		Name:    "backup.stream",
+		Message: fmt.Sprintf("Backed up %s stream", containerName),
+		Fields: []report.Field{
+			report.F("container", containerName),
+			report.F("outcome", "success"),
+		},
+	})
 
 	totals.add(outcomeSucceeded)
 }
@@ -221,17 +268,25 @@ func runVolumesForLabeledGroup(
 	backupFn Func,
 	spec filter.Spec,
 	hostname string,
-	out io.Writer,
+	reporter report.Reporter,
 	totals *counts,
 ) {
 	if spec.Mode == filter.ModeReplace {
 		for _, target := range group {
-			_, _ = fmt.Fprintf(
-				out,
-				"Skipped %s/%s: replaced by pre-backup stream\n",
-				target.Container.Name,
-				target.Mount.Name,
-			)
+			reporter.Emit(report.Event{
+				Level: report.LevelInfo,
+				Name:  "backup.target",
+				Message: fmt.Sprintf(
+					"Skipped %s/%s: replaced by pre-backup stream",
+					target.Container.Name, target.Mount.Name,
+				),
+				Fields: []report.Field{
+					report.F("container", target.Container.Name),
+					report.F("volume", target.Mount.Name),
+					report.F("outcome", "skipped"),
+					report.F("reason", "replaced by pre-backup stream"),
+				},
+			})
 
 			totals.add(outcomeSkipped)
 		}
@@ -240,7 +295,7 @@ func runVolumesForLabeledGroup(
 	}
 
 	for _, target := range group {
-		totals.add(runTarget(ctx, target, backupFn, hostname, out))
+		totals.add(runTarget(ctx, target, backupFn, hostname, reporter))
 	}
 }
 
@@ -250,15 +305,23 @@ func runTarget(
 	target discovery.Target,
 	backupFn Func,
 	hostname string,
-	out io.Writer,
+	reporter report.Reporter,
 ) targetOutcome {
 	if target.Mount.Source == "" {
-		_, _ = fmt.Fprintf(
-			out,
-			"Skipped %s/%s: no source path\n",
-			target.Container.Name,
-			target.Mount.Name,
-		)
+		reporter.Emit(report.Event{
+			Level: report.LevelWarn,
+			Style: report.StyleWarning,
+			Name:  "backup.target",
+			Message: fmt.Sprintf(
+				"Skipped %s/%s: no source path", target.Container.Name, target.Mount.Name,
+			),
+			Fields: []report.Field{
+				report.F("container", target.Container.Name),
+				report.F("volume", target.Mount.Name),
+				report.F("outcome", "skipped"),
+				report.F("reason", "no source path"),
+			},
+		})
 
 		return outcomeSkipped
 	}
@@ -267,30 +330,63 @@ func runTarget(
 
 	err := backupFn(ctx, target.Mount.Source, tags)
 	if err != nil {
-		if errors.Is(err, restic.ErrSourceUnreadable) {
-			_, _ = fmt.Fprintf(
-				out,
-				"WARN: skipping %s/%s: source unreadable (%v)\n",
-				target.Container.Name,
-				target.Mount.Destination,
-				err,
-			)
-
-			return outcomeSkipped
-		}
-
-		_, _ = fmt.Fprintf(
-			out,
-			"Failed %s/%s: %v\n",
-			target.Container.Name,
-			target.Mount.Name,
-			err,
-		)
-
-		return outcomeFailed
+		return reportTargetError(reporter, target, err)
 	}
 
-	_, _ = fmt.Fprintf(out, "Backed up %s/%s\n", target.Container.Name, target.Mount.Name)
+	reporter.Emit(report.Event{
+		Level:   report.LevelInfo,
+		Style:   report.StyleSuccess,
+		Name:    "backup.target",
+		Message: fmt.Sprintf("Backed up %s/%s", target.Container.Name, target.Mount.Name),
+		Fields: []report.Field{
+			report.F("container", target.Container.Name),
+			report.F("volume", target.Mount.Name),
+			report.F("outcome", "success"),
+		},
+	})
 
 	return outcomeSucceeded
+}
+
+// reportTargetError emits the warn (source unreadable) or error (failure)
+// event for a failed backupFn call and returns the matching outcome.
+func reportTargetError(
+	reporter report.Reporter,
+	target discovery.Target,
+	err error,
+) targetOutcome {
+	if errors.Is(err, restic.ErrSourceUnreadable) {
+		reporter.Emit(report.Event{
+			Level: report.LevelWarn,
+			Style: report.StyleWarning,
+			Name:  "backup.target",
+			Message: fmt.Sprintf(
+				"WARN: skipping %s/%s: source unreadable (%v)",
+				target.Container.Name, target.Mount.Destination, err,
+			),
+			Fields: []report.Field{
+				report.F("container", target.Container.Name),
+				report.F("volume", target.Mount.Name),
+				report.F("outcome", "skipped"),
+				report.F("reason", "source unreadable"),
+			},
+		})
+
+		return outcomeSkipped
+	}
+
+	reporter.Emit(report.Event{
+		Level:   report.LevelError,
+		Style:   report.StyleError,
+		Name:    "backup.target",
+		Message: fmt.Sprintf("Failed %s/%s: %v", target.Container.Name, target.Mount.Name, err),
+		Fields: []report.Field{
+			report.F("container", target.Container.Name),
+			report.F("volume", target.Mount.Name),
+			report.F("outcome", "failed"),
+			report.F("error", err.Error()),
+		},
+	})
+
+	return outcomeFailed
 }

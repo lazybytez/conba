@@ -11,9 +11,18 @@ import (
 
 	"github.com/lazybytez/conba/internal/backup"
 	"github.com/lazybytez/conba/internal/discovery"
+	"github.com/lazybytez/conba/internal/report"
 	"github.com/lazybytez/conba/internal/restic"
 	"github.com/lazybytez/conba/internal/runtime"
 )
+
+// textReporter builds a text-mode reporter writing to buf, so tests can
+// assert on the human output of backup.Run.
+//
+//nolint:ireturn // test helper returns the Reporter abstraction by design.
+func textReporter(buf *bytes.Buffer) report.Reporter {
+	return report.New(report.ModeText, buf, false)
+}
 
 // noopExecer satisfies runtime.CommandExecer for Run tests that exercise the
 // volume path or a recording stream sink; it never produces output.
@@ -131,7 +140,7 @@ func TestRun_AllSucceed(t *testing.T) {
 		context.Background(),
 		targets,
 		optsFor(backupFn, nilStreamFn(), false, "host1"),
-		&buf,
+		textReporter(&buf),
 	)
 	if err != nil {
 		t.Fatalf("want nil error, got %v", err)
@@ -164,7 +173,7 @@ func TestRun_AllFail(t *testing.T) {
 		context.Background(),
 		targets,
 		optsFor(backupFn, nilStreamFn(), false, "host1"),
-		&buf,
+		textReporter(&buf),
 	)
 	if err == nil {
 		t.Fatal("want error, got nil")
@@ -201,7 +210,7 @@ func TestRun_PartialFailure(t *testing.T) {
 		context.Background(),
 		targets,
 		optsFor(backupFn, nilStreamFn(), false, "host1"),
-		&buf,
+		textReporter(&buf),
 	)
 	if err == nil {
 		t.Fatal("want error, got nil")
@@ -233,7 +242,7 @@ func TestRun_Empty(t *testing.T) {
 		context.Background(),
 		nil,
 		optsFor(backupFn, nilStreamFn(), false, "host1"),
-		&buf,
+		textReporter(&buf),
 	)
 	if err != nil {
 		t.Fatalf("want nil error, got %v", err)
@@ -259,7 +268,7 @@ func TestRun_UsesSourcePath(t *testing.T) {
 		context.Background(),
 		targets,
 		optsFor(backupFn, nilStreamFn(), false, "host1"),
-		&buf,
+		textReporter(&buf),
 	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -294,7 +303,7 @@ func TestRun_PassesVolumeTags(t *testing.T) {
 		context.Background(),
 		targets,
 		optsFor(backupFn, nilStreamFn(), false, "testhost"),
-		&buf,
+		textReporter(&buf),
 	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -328,7 +337,7 @@ func TestRun_EmptySourceSkipped(t *testing.T) {
 		context.Background(),
 		targets,
 		optsFor(backupFn, nilStreamFn(), false, "host1"),
-		&buf,
+		textReporter(&buf),
 	)
 	if err != nil {
 		t.Fatalf("want nil error, got %v", err)
@@ -365,7 +374,7 @@ func TestRun_SourceUnreadableIsSkipped(t *testing.T) {
 		context.Background(),
 		targets,
 		optsFor(backupFn, nilStreamFn(), false, "host1"),
-		&buf,
+		textReporter(&buf),
 	)
 	if err != nil {
 		t.Fatalf("want nil error for skipped target, got %v", err)
@@ -400,7 +409,7 @@ func TestRun_MixedSkipAndFail(t *testing.T) {
 		context.Background(),
 		targets,
 		optsFor(backupFn, nilStreamFn(), false, "host1"),
-		&buf,
+		textReporter(&buf),
 	)
 	if err == nil {
 		t.Fatal("want error because failed > 0, got nil")
@@ -443,7 +452,7 @@ func TestRun_AllSkipped(t *testing.T) {
 		context.Background(),
 		targets,
 		optsFor(backupFn, nilStreamFn(), false, "host1"),
-		&buf,
+		textReporter(&buf),
 	)
 	if err != nil {
 		t.Fatalf("want nil error when all targets are skipped, got %v", err)
@@ -475,7 +484,7 @@ func TestRun_PreBackupDisabled_IgnoresLabels(t *testing.T) {
 		context.Background(),
 		targets,
 		optsFor(backupFn, streamFn, false, "host1"),
-		&buf,
+		textReporter(&buf),
 	)
 	if err != nil {
 		t.Fatalf("want nil error, got %v", err)
@@ -515,7 +524,7 @@ func TestRun_AlongsideMode_StreamAndVolumeBothRun(t *testing.T) {
 		context.Background(),
 		targets,
 		optsFor(backupFn, streamFn, true, "host1"),
-		&buf,
+		textReporter(&buf),
 	)
 	if err != nil {
 		t.Fatalf("want nil error, got %v", err)
@@ -558,7 +567,7 @@ func TestRun_ReplaceMode_MultipleMounts_StreamRunsOnce(t *testing.T) {
 		context.Background(),
 		targets,
 		optsFor(backupFn, streamFn, true, "host1"),
-		&buf,
+		textReporter(&buf),
 	)
 	if err != nil {
 		t.Fatalf("want nil error, got %v", err)
@@ -599,7 +608,7 @@ func TestRun_StreamFails_Replace_TargetGroupFailed(t *testing.T) {
 		context.Background(),
 		targets,
 		optsFor(backupFn, streamFn, true, "host1"),
-		&buf,
+		textReporter(&buf),
 	)
 	if err == nil {
 		t.Fatal("want error because stream failed, got nil")
@@ -646,7 +655,7 @@ func TestRun_StreamFails_Alongside_VolumeStillRuns(t *testing.T) {
 		context.Background(),
 		targets,
 		optsFor(backupFn, streamFn, true, "host1"),
-		&buf,
+		textReporter(&buf),
 	)
 	if err == nil {
 		t.Fatal("want error because stream failed, got nil")
@@ -687,7 +696,7 @@ func TestRun_InvalidMode_GroupFailed_CycleContinues(t *testing.T) {
 		context.Background(),
 		targets,
 		optsFor(backupFn, streamFn, true, "host1"),
-		&buf,
+		textReporter(&buf),
 	)
 	if err == nil {
 		t.Fatal("want error because invalid mode, got nil")
@@ -734,7 +743,7 @@ func TestRun_ReplaceMode_SkipsVolumeBackup(t *testing.T) {
 		context.Background(),
 		targets,
 		optsFor(backupFn, streamFn, true, "host1"),
-		&buf,
+		textReporter(&buf),
 	)
 	if err != nil {
 		t.Fatalf("want nil error, got %v", err)
@@ -771,7 +780,7 @@ func TestRun_SkipMessageFormat(t *testing.T) {
 		context.Background(),
 		targets,
 		optsFor(backupFn, nilStreamFn(), false, "host1"),
-		&buf,
+		textReporter(&buf),
 	)
 	if err != nil {
 		t.Fatalf("want nil error, got %v", err)

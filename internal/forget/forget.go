@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"strings"
 
 	"github.com/lazybytez/conba/internal/backup"
 	"github.com/lazybytez/conba/internal/config"
 	"github.com/lazybytez/conba/internal/discovery"
 	"github.com/lazybytez/conba/internal/filter"
+	"github.com/lazybytez/conba/internal/report"
 	"github.com/lazybytez/conba/internal/restic"
 )
 
@@ -37,6 +37,27 @@ type Options struct {
 // (parse error or restic error). Mirrors backup.ErrTargetsFailed.
 var ErrTargetsFailed = errors.New("forget targets failed")
 
+// RunError reports how a forget cycle ended, carrying per-outcome counts so
+// callers can distinguish a partial failure from a total one. It satisfies
+// errors.Is(err, ErrTargetsFailed).
+type RunError struct {
+	Succeeded int
+	Skipped   int
+	Failed    int
+}
+
+// Error implements error.
+func (e *RunError) Error() string {
+	total := e.Succeeded + e.Skipped + e.Failed
+
+	return fmt.Sprintf("%d of %d target(s) failed", e.Failed, total)
+}
+
+// Is reports that a RunError matches the ErrTargetsFailed sentinel.
+func (e *RunError) Is(target error) bool {
+	return target == ErrTargetsFailed
+}
+
 // targetOutcome classifies the result of forgetting on a single target.
 type targetOutcome int
 
@@ -48,39 +69,41 @@ const (
 
 // Run iterates targets, resolves effective retention per target, and
 // calls forgetFn once per target with the target's tags (plus host
-// scoping unless opts.AllHosts). Outcomes split into succeeded /
-// skipped / failed buckets.
+// scoping unless opts.AllHosts), emitting progress and a summary through
+// reporter. Outcomes split into succeeded / skipped / failed buckets.
 func Run(
 	ctx context.Context,
 	targets []discovery.Target,
 	forgetFn Func,
 	globalRetention config.RetentionConfig,
 	opts Options,
-	out io.Writer,
+	reporter report.Reporter,
 ) error {
 	if len(targets) == 0 {
 		return nil
 	}
 
-	succeeded := 0
-	skipped := 0
-	failed := 0
+	totals := struct{ succeeded, skipped, failed int }{succeeded: 0, skipped: 0, failed: 0}
 
 	for _, target := range targets {
-		switch runTarget(ctx, target, forgetFn, globalRetention, opts, out) {
+		switch runTarget(ctx, target, forgetFn, globalRetention, opts, reporter) {
 		case outcomeSucceeded:
-			succeeded++
+			totals.succeeded++
 		case outcomeSkipped:
-			skipped++
+			totals.skipped++
 		case outcomeFailed:
-			failed++
+			totals.failed++
 		}
 	}
 
-	writeSummary(out, opts.DryRun, succeeded, skipped, failed)
+	emitSummary(reporter, opts.DryRun, totals.succeeded, totals.skipped, totals.failed)
 
-	if failed > 0 {
-		return fmt.Errorf("%d target(s) failed: %w", failed, ErrTargetsFailed)
+	if totals.failed > 0 {
+		return &RunError{
+			Succeeded: totals.succeeded,
+			Skipped:   totals.skipped,
+			Failed:    totals.failed,
+		}
 	}
 
 	return nil
@@ -92,47 +115,79 @@ func runTarget(
 	forgetFn Func,
 	globalRetention config.RetentionConfig,
 	opts Options,
-	out io.Writer,
+	reporter report.Reporter,
 ) targetOutcome {
 	policy, source, err := Resolve(target, globalRetention)
 	if err != nil {
 		raw := target.Container.Labels[filter.LabelRetention]
-		_, _ = fmt.Fprintf(
-			out,
-			"Failed %s/%s: invalid retention label %q: %v\n",
-			target.Container.Name,
-			target.Mount.Name,
-			raw,
-			err,
-		)
+		reporter.Emit(report.Event{
+			Level: report.LevelError,
+			Style: report.StyleError,
+			Name:  "forget.target",
+			Message: fmt.Sprintf(
+				"Failed %s/%s: invalid retention label %q: %v",
+				target.Container.Name, target.Mount.Name, raw, err,
+			),
+			Fields: []report.Field{
+				report.F("container", target.Container.Name),
+				report.F("volume", target.Mount.Name),
+				report.F("outcome", "failed"),
+				report.F("error", err.Error()),
+			},
+		})
 
 		return outcomeFailed
 	}
 
 	if source == ResolutionNone {
-		_, _ = fmt.Fprintf(
-			out,
-			"Skipped %s/%s: no retention policy configured (label empty, global empty)\n",
-			target.Container.Name,
-			target.Mount.Name,
-		)
+		reporter.Emit(report.Event{
+			Level: report.LevelInfo,
+			Name:  "forget.target",
+			Message: fmt.Sprintf(
+				"Skipped %s/%s: no retention policy configured (label empty, global empty)",
+				target.Container.Name, target.Mount.Name,
+			),
+			Fields: []report.Field{
+				report.F("container", target.Container.Name),
+				report.F("volume", target.Mount.Name),
+				report.F("outcome", "skipped"),
+				report.F("reason", "no retention policy configured"),
+			},
+		})
 
 		return outcomeSkipped
 	}
 
+	return applyForget(ctx, target, forgetFn, policy, opts, reporter)
+}
+
+// applyForget runs forgetFn for a target with a resolved policy and reports
+// the outcome.
+func applyForget(
+	ctx context.Context,
+	target discovery.Target,
+	forgetFn Func,
+	policy config.RetentionConfig,
+	opts Options,
+	reporter report.Reporter,
+) targetOutcome {
 	tags := buildTags(target, opts)
-	resticPolicy := ToResticPolicy(policy)
 	resticOpts := restic.ForgetOptions{Prune: opts.Prune, DryRun: opts.DryRun}
 
-	err = forgetFn(ctx, tags, resticPolicy, resticOpts)
+	err := forgetFn(ctx, tags, ToResticPolicy(policy), resticOpts)
 	if err != nil {
-		_, _ = fmt.Fprintf(
-			out,
-			"Failed %s/%s: %v\n",
-			target.Container.Name,
-			target.Mount.Name,
-			err,
-		)
+		reporter.Emit(report.Event{
+			Level:   report.LevelError,
+			Style:   report.StyleError,
+			Name:    "forget.target",
+			Message: fmt.Sprintf("Failed %s/%s: %v", target.Container.Name, target.Mount.Name, err),
+			Fields: []report.Field{
+				report.F("container", target.Container.Name),
+				report.F("volume", target.Mount.Name),
+				report.F("outcome", "failed"),
+				report.F("error", err.Error()),
+			},
+		})
 
 		return outcomeFailed
 	}
@@ -142,7 +197,18 @@ func runTarget(
 		verb = "Would forget from"
 	}
 
-	_, _ = fmt.Fprintf(out, "%s %s/%s\n", verb, target.Container.Name, target.Mount.Name)
+	reporter.Emit(report.Event{
+		Level:   report.LevelInfo,
+		Style:   report.StyleSuccess,
+		Name:    "forget.target",
+		Message: fmt.Sprintf("%s %s/%s", verb, target.Container.Name, target.Mount.Name),
+		Fields: []report.Field{
+			report.F("container", target.Container.Name),
+			report.F("volume", target.Mount.Name),
+			report.F("outcome", "success"),
+			report.F("dry_run", opts.DryRun),
+		},
+	})
 
 	return outcomeSucceeded
 }
@@ -182,24 +248,26 @@ func ToResticPolicy(c config.RetentionConfig) restic.ForgetPolicy {
 	}
 }
 
-func writeSummary(out io.Writer, dryRun bool, succeeded, skipped, failed int) {
+func emitSummary(reporter report.Reporter, dryRun bool, succeeded, skipped, failed int) {
+	message := fmt.Sprintf(
+		"Forget complete: %d succeeded, %d skipped, %d failed.", succeeded, skipped, failed,
+	)
 	if dryRun {
-		_, _ = fmt.Fprintf(
-			out,
-			"Forget complete (dry-run): %d would succeed, %d skipped, %d failed.\n",
-			succeeded,
-			skipped,
-			failed,
+		message = fmt.Sprintf(
+			"Forget complete (dry-run): %d would succeed, %d skipped, %d failed.",
+			succeeded, skipped, failed,
 		)
-
-		return
 	}
 
-	_, _ = fmt.Fprintf(
-		out,
-		"Forget complete: %d succeeded, %d skipped, %d failed.\n",
-		succeeded,
-		skipped,
-		failed,
-	)
+	reporter.Emit(report.Event{
+		Level:   report.LevelInfo,
+		Name:    "forget.summary",
+		Message: message,
+		Fields: []report.Field{
+			report.F("succeeded", succeeded),
+			report.F("skipped", skipped),
+			report.F("failed", failed),
+			report.F("dry_run", dryRun),
+		},
+	})
 }

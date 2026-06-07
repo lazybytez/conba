@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"io"
 	"os"
 
 	"github.com/lazybytez/conba/internal/backup"
@@ -10,6 +9,7 @@ import (
 	"github.com/lazybytez/conba/internal/discovery"
 	"github.com/lazybytez/conba/internal/forget"
 	"github.com/lazybytez/conba/internal/logging"
+	"github.com/lazybytez/conba/internal/report"
 	"github.com/lazybytez/conba/internal/restic"
 	"github.com/lazybytez/conba/internal/runtime/docker"
 	"github.com/spf13/cobra"
@@ -31,6 +31,7 @@ type runRequest struct {
 	cfg      *config.Config
 	logger   *zap.Logger
 	client   *restic.Client
+	reporter report.Reporter
 	hostname string
 	flags    runFlags
 }
@@ -77,11 +78,11 @@ func runRun(cmd *cobra.Command, _ []string) error {
 	defer cleanup()
 
 	if len(targets) == 0 {
-		_, writeErr := fmt.Fprintln(req.cmd.OutOrStdout(),
-			"No volumes discovered; nothing to back up or forget.")
-		if writeErr != nil {
-			return fmt.Errorf("writing output: %w", writeErr)
-		}
+		req.reporter.Emit(report.Event{
+			Level:   report.LevelInfo,
+			Name:    "run.summary",
+			Message: "No volumes discovered; nothing to back up or forget.",
+		})
 
 		return nil
 	}
@@ -124,6 +125,7 @@ func buildRunRequest(cmd *cobra.Command) (*runRequest, error) {
 		cfg:      cfg,
 		logger:   logger,
 		client:   client,
+		reporter: report.FromContext(ctx),
 		hostname: hostname,
 		flags:    flags,
 	}, nil
@@ -138,22 +140,19 @@ func readRunFlags(flags *pflag.FlagSet) runFlags {
 }
 
 func runInitPhase(req *runRequest) error {
-	out := req.cmd.OutOrStdout()
+	emitPhaseHeader(req.reporter, "init")
 
-	err := writePhaseHeader(out, "init")
-	if err != nil {
-		return err
-	}
-
-	err = req.client.Init(req.cmd.Context())
+	err := req.client.Init(req.cmd.Context())
 	if err != nil {
 		return fmt.Errorf("run init: %w", err)
 	}
 
-	_, err = fmt.Fprintln(out, "Repository initialized.")
-	if err != nil {
-		return fmt.Errorf("writing output: %w", err)
-	}
+	req.reporter.Emit(report.Event{
+		Level:   report.LevelInfo,
+		Style:   report.StyleSuccess,
+		Name:    "init.done",
+		Message: "Repository initialized.",
+	})
 
 	return nil
 }
@@ -163,20 +162,15 @@ func runBackupPhase(
 	runtimeClient *docker.Client,
 	targets []discovery.Target,
 ) error {
-	out := req.cmd.OutOrStdout()
-
-	err := writePhaseHeader(out, "backup")
-	if err != nil {
-		return err
-	}
+	emitPhaseHeader(req.reporter, "backup")
 
 	if req.flags.dryRun {
-		return printDryRun(out, targets, req.cfg.PreBackupCommands.Enabled)
+		return runBackupDryRun(req.reporter, targets, req.cfg.PreBackupCommands.Enabled)
 	}
 
 	opts := buildBackupOptions(req.client, runtimeClient, req.cfg, req.hostname)
 
-	err = backup.Run(req.cmd.Context(), targets, opts, out)
+	err := backup.Run(req.cmd.Context(), targets, opts, req.reporter)
 	if err != nil {
 		return fmt.Errorf("run backup: %w", err)
 	}
@@ -185,16 +179,13 @@ func runBackupPhase(
 }
 
 func runForgetPhase(req *runRequest, targets []discovery.Target) error {
-	out := req.cmd.OutOrStdout()
-
-	err := writePhaseHeader(out, "forget")
-	if err != nil {
-		return err
-	}
+	emitPhaseHeader(req.reporter, "forget")
 
 	opts := buildForgetOptions(req.hostname, req.flags.allHosts, req.flags.dryRun, true)
 
-	err = forget.Run(req.cmd.Context(), targets, req.client.Forget, req.cfg.Retention, opts, out)
+	err := forget.Run(
+		req.cmd.Context(), targets, req.client.Forget, req.cfg.Retention, opts, req.reporter,
+	)
 	if err != nil {
 		return fmt.Errorf("run forget: %w", err)
 	}
@@ -202,11 +193,11 @@ func runForgetPhase(req *runRequest, targets []discovery.Target) error {
 	return nil
 }
 
-func writePhaseHeader(out io.Writer, phase string) error {
-	_, err := fmt.Fprintf(out, "==> %s\n", phase)
-	if err != nil {
-		return fmt.Errorf("writing output: %w", err)
-	}
-
-	return nil
+func emitPhaseHeader(reporter report.Reporter, phase string) {
+	reporter.Emit(report.Event{
+		Level:   report.LevelInfo,
+		Name:    "run.phase",
+		Message: "==> " + phase,
+		Fields:  []report.Field{report.F("phase", phase)},
+	})
 }

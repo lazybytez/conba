@@ -9,6 +9,7 @@ import (
 	"github.com/lazybytez/conba/internal/config"
 	"github.com/lazybytez/conba/internal/forget"
 	"github.com/lazybytez/conba/internal/logging"
+	"github.com/lazybytez/conba/internal/report"
 	"github.com/lazybytez/conba/internal/restic"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -45,6 +46,7 @@ type forgetRequest struct {
 	cfg      *config.Config
 	logger   *zap.Logger
 	client   *restic.Client
+	reporter report.Reporter
 	hostname string
 	flags    forgetFlags
 }
@@ -100,6 +102,7 @@ func runForget(cmd *cobra.Command, _ []string) error {
 		cfg:      cfg,
 		logger:   logger,
 		client:   client,
+		reporter: report.FromContext(ctx),
 		hostname: hostname,
 		flags:    flags,
 	}
@@ -142,10 +145,13 @@ func runForgetSurgical(req *forgetRequest) error {
 		message = "Surgical forget complete (dry-run)."
 	}
 
-	_, writeErr := fmt.Fprintln(req.cmd.OutOrStdout(), message)
-	if writeErr != nil {
-		return fmt.Errorf("writing output: %w", writeErr)
-	}
+	req.reporter.Emit(report.Event{
+		Level:   report.LevelInfo,
+		Style:   report.StyleSuccess,
+		Name:    "forget.surgical",
+		Message: message,
+		Fields:  []report.Field{report.F("dry_run", req.flags.dryRun)},
+	})
 
 	return nil
 }
@@ -181,10 +187,16 @@ func runForgetDiscovery(req *forgetRequest) error {
 	defer cleanup()
 
 	if len(targets) == 0 {
-		_, writeErr := fmt.Fprintln(req.cmd.OutOrStdout(), "No volumes to forget.")
-		if writeErr != nil {
-			return fmt.Errorf("writing output: %w", writeErr)
-		}
+		req.reporter.Emit(report.Event{
+			Level:   report.LevelInfo,
+			Name:    "forget.summary",
+			Message: "No volumes to forget.",
+			Fields: []report.Field{
+				report.F("succeeded", 0),
+				report.F("skipped", 0),
+				report.F("failed", 0),
+			},
+		})
 
 		return nil
 	}
@@ -202,7 +214,7 @@ func runForgetDiscovery(req *forgetRequest) error {
 		req.client.Forget,
 		req.cfg.Retention,
 		opts,
-		req.cmd.OutOrStdout(),
+		req.reporter,
 	)
 	if err != nil {
 		return fmt.Errorf("run forget: %w", err)

@@ -9,10 +9,92 @@ import (
 	"github.com/lazybytez/conba/internal/backup"
 	"github.com/lazybytez/conba/internal/discovery"
 	"github.com/lazybytez/conba/internal/filter"
+	"github.com/lazybytez/conba/internal/report"
 )
 
 func formatTags(tags []string) string {
 	return strings.Join(tags, ", ")
+}
+
+// emitDryRun renders the backup dry-run plan as structured events: one
+// backup.plan per planned action plus a backup.plan.summary with the volume
+// count. Mirrors printDryRun's logic for json output.
+func emitDryRun(
+	reporter report.Reporter,
+	targets []discovery.Target,
+	preBackupEnabled bool,
+) {
+	volumeCount := 0
+
+	for _, group := range groupByContainer(targets) {
+		volumeCount += emitDryRunGroup(reporter, group, preBackupEnabled)
+	}
+
+	reporter.Emit(report.Event{
+		Level:   report.LevelInfo,
+		Name:    "backup.plan.summary",
+		Message: fmt.Sprintf("%d volume(s) would be backed up.", volumeCount),
+		Fields:  []report.Field{report.F("volumes", volumeCount)},
+	})
+}
+
+func emitDryRunGroup(
+	reporter report.Reporter,
+	group []discovery.Target,
+	preBackupEnabled bool,
+) int {
+	first := group[0]
+
+	spec, hasSpec, err := filter.PreBackup(first)
+	if !preBackupEnabled || err != nil || !hasSpec {
+		return emitDryRunVolumes(reporter, group)
+	}
+
+	reporter.Emit(report.Event{
+		Level: report.LevelInfo,
+		Name:  "backup.plan",
+		Fields: []report.Field{
+			report.F("container", first.Container.Name),
+			report.F("action", "run_command"),
+			report.F("command", spec.Command),
+			report.F("mode", string(spec.Mode)),
+		},
+	})
+
+	if spec.Mode != filter.ModeReplace {
+		return emitDryRunVolumes(reporter, group)
+	}
+
+	for _, target := range group {
+		reporter.Emit(report.Event{
+			Level: report.LevelInfo,
+			Name:  "backup.plan",
+			Fields: []report.Field{
+				report.F("container", target.Container.Name),
+				report.F("volume", target.Mount.Name),
+				report.F("action", "skip"),
+				report.F("reason", "replaced by pre-backup stream"),
+			},
+		})
+	}
+
+	return 0
+}
+
+func emitDryRunVolumes(reporter report.Reporter, group []discovery.Target) int {
+	for _, target := range group {
+		reporter.Emit(report.Event{
+			Level: report.LevelInfo,
+			Name:  "backup.plan",
+			Fields: []report.Field{
+				report.F("container", target.Container.Name),
+				report.F("volume", target.Mount.Name),
+				report.F("action", "backup"),
+			},
+		})
+	}
+
+	return len(group)
 }
 
 // printDryRun renders the dry-run plan for a backup cycle. When

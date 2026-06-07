@@ -11,11 +11,20 @@ import (
 	"github.com/lazybytez/conba/internal/discovery"
 	"github.com/lazybytez/conba/internal/filter"
 	"github.com/lazybytez/conba/internal/forget"
+	"github.com/lazybytez/conba/internal/report"
 	"github.com/lazybytez/conba/internal/restic"
 	"github.com/lazybytez/conba/internal/runtime"
 )
 
 var errForget = errors.New("forget failed")
+
+// textReporter builds a text-mode reporter writing to buf, so tests can
+// assert on the human output of forget.Run.
+//
+//nolint:ireturn // test helper returns the Reporter abstraction by design.
+func textReporter(buf *bytes.Buffer) report.Reporter {
+	return report.New(report.ModeText, buf, false)
+}
 
 type capturedCall struct {
 	tags   []string
@@ -98,7 +107,7 @@ func TestRun_AllSucceed(t *testing.T) {
 		forgetFn,
 		policy(0, 0, 0, 0),
 		defaultOpts(),
-		&buf,
+		textReporter(&buf),
 	)
 	if err != nil {
 		t.Fatalf("want nil error, got %v", err)
@@ -140,7 +149,7 @@ func TestRun_AllFail(t *testing.T) {
 		forgetFn,
 		policy(0, 0, 0, 0),
 		defaultOpts(),
-		&buf,
+		textReporter(&buf),
 	)
 	if err == nil {
 		t.Fatal("want error, got nil")
@@ -180,7 +189,7 @@ func TestRun_MixedOutcomes(t *testing.T) {
 		forgetFn,
 		policy(0, 0, 0, 0),
 		defaultOpts(),
-		&buf,
+		textReporter(&buf),
 	)
 	if err == nil {
 		t.Fatal("want error because failed > 0, got nil")
@@ -228,7 +237,14 @@ func TestRun_DryRunSummary(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	err := forget.Run(context.Background(), targets, forgetFn, policy(0, 0, 0, 0), opts, &buf)
+	err := forget.Run(
+		context.Background(),
+		targets,
+		forgetFn,
+		policy(0, 0, 0, 0),
+		opts,
+		textReporter(&buf),
+	)
 	if err != nil {
 		t.Fatalf("want nil error, got %v", err)
 	}
@@ -263,7 +279,14 @@ func TestRun_AllHostsStripsHostTag(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	err := forget.Run(context.Background(), targets, forgetFn, policy(0, 0, 0, 0), opts, &buf)
+	err := forget.Run(
+		context.Background(),
+		targets,
+		forgetFn,
+		policy(0, 0, 0, 0),
+		opts,
+		textReporter(&buf),
+	)
 	if err != nil {
 		t.Fatalf("want nil error, got %v", err)
 	}
@@ -294,7 +317,14 @@ func TestRun_DefaultIncludesHostTag(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	err := forget.Run(context.Background(), targets, forgetFn, policy(0, 0, 0, 0), opts, &buf)
+	err := forget.Run(
+		context.Background(),
+		targets,
+		forgetFn,
+		policy(0, 0, 0, 0),
+		opts,
+		textReporter(&buf),
+	)
 	if err != nil {
 		t.Fatalf("want nil error, got %v", err)
 	}
@@ -335,7 +365,14 @@ func TestRun_PassesPruneAndDryRun(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	err := forget.Run(context.Background(), targets, forgetFn, policy(0, 0, 0, 0), opts, &buf)
+	err := forget.Run(
+		context.Background(),
+		targets,
+		forgetFn,
+		policy(0, 0, 0, 0),
+		opts,
+		textReporter(&buf),
+	)
 	if err != nil {
 		t.Fatalf("want nil error, got %v", err)
 	}
@@ -367,7 +404,7 @@ func TestRun_NoTargets_NoOutput_NoError(t *testing.T) {
 		forgetFn,
 		policy(0, 0, 0, 0),
 		defaultOpts(),
-		&buf,
+		textReporter(&buf),
 	)
 	if err != nil {
 		t.Fatalf("want nil error, got %v", err)
@@ -395,7 +432,7 @@ func TestRun_LabelOverrideUsesParsedPolicy(t *testing.T) {
 		forgetFn,
 		policy(0, 1, 0, 0),
 		defaultOpts(),
-		&buf,
+		textReporter(&buf),
 	)
 	if err != nil {
 		t.Fatalf("want nil error, got %v", err)
@@ -440,7 +477,7 @@ func TestRun_GlobalUsedWhenLabelAbsent(t *testing.T) {
 		forgetFn,
 		policy(0, 1, 0, 0),
 		defaultOpts(),
-		&buf,
+		textReporter(&buf),
 	)
 	if err != nil {
 		t.Fatalf("want nil error, got %v", err)

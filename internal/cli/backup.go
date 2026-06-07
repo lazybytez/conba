@@ -10,6 +10,7 @@ import (
 	"github.com/lazybytez/conba/internal/discovery"
 	"github.com/lazybytez/conba/internal/filter"
 	"github.com/lazybytez/conba/internal/logging"
+	"github.com/lazybytez/conba/internal/report"
 	"github.com/lazybytez/conba/internal/restic"
 	"github.com/lazybytez/conba/internal/runtime/docker"
 	"github.com/spf13/cobra"
@@ -40,6 +41,7 @@ func runBackup(cmd *cobra.Command, _ []string) error {
 	}
 
 	dryRun := flagBool(cmd.Flags(), "dry-run")
+	reporter := report.FromContext(ctx)
 
 	targets, runtimeClient, cleanup, err := discoverFiltered(ctx, cfg, logger)
 	if err != nil {
@@ -51,26 +53,89 @@ func runBackup(cmd *cobra.Command, _ []string) error {
 	defer cleanup()
 
 	if len(targets) == 0 {
-		_, writeErr := fmt.Fprintln(cmd.OutOrStdout(), "No volumes to back up.")
-		if writeErr != nil {
-			return fmt.Errorf("writing output: %w", writeErr)
-		}
+		reporter.Emit(report.Event{
+			Level:   report.LevelInfo,
+			Name:    "backup.summary",
+			Message: "No volumes to back up.",
+			Fields: []report.Field{
+				report.F("succeeded", 0),
+				report.F("skipped", 0),
+				report.F("failed", 0),
+			},
+		})
 
 		return nil
 	}
 
 	if dryRun {
-		return printDryRun(cmd.OutOrStdout(), targets, cfg.PreBackupCommands.Enabled)
+		return runBackupDryRun(reporter, targets, cfg.PreBackupCommands.Enabled)
 	}
 
 	if cfg.PreBackupCommands.Enabled {
-		err = printPreBackupSummary(cmd.OutOrStdout(), targets)
+		err = reportPreBackupSummary(reporter, targets)
 		if err != nil {
 			return err
 		}
 	}
 
-	return executeBackup(cmd, cfg, logger, runtimeClient, targets)
+	return executeBackup(cmd, cfg, logger, runtimeClient, targets, reporter)
+}
+
+// runBackupDryRun renders the dry-run plan as structured events (json) or the
+// human plan (text).
+func runBackupDryRun(
+	reporter report.Reporter,
+	targets []discovery.Target,
+	preBackupEnabled bool,
+) error {
+	if reporter.Mode() == report.ModeJSON {
+		emitDryRun(reporter, targets, preBackupEnabled)
+
+		return nil
+	}
+
+	return printDryRun(reporter.Out(), targets, preBackupEnabled)
+}
+
+// reportPreBackupSummary emits the pre-backup banner as structured events
+// (json) or human lines (text).
+func reportPreBackupSummary(reporter report.Reporter, targets []discovery.Target) error {
+	if reporter.Mode() != report.ModeJSON {
+		return printPreBackupSummary(reporter.Out(), targets)
+	}
+
+	seen := make(map[string]struct{})
+
+	for _, target := range targets {
+		name := target.Container.Name
+		if _, ok := seen[name]; ok {
+			continue
+		}
+
+		spec, hasSpec, err := filter.PreBackup(target)
+		if err != nil || !hasSpec {
+			continue
+		}
+
+		seen[name] = struct{}{}
+
+		filename := spec.Filename
+		if filename == "" {
+			filename = name
+		}
+
+		reporter.Emit(report.Event{
+			Level: report.LevelInfo,
+			Name:  "pre_backup.plan",
+			Fields: []report.Field{
+				report.F("container", name),
+				report.F("mode", string(spec.Mode)),
+				report.F("filename", filename),
+			},
+		})
+	}
+
+	return nil
 }
 
 func executeBackup(
@@ -79,6 +144,7 @@ func executeBackup(
 	logger *zap.Logger,
 	runtimeClient *docker.Client,
 	targets []discovery.Target,
+	reporter report.Reporter,
 ) error {
 	client, err := restic.New(cfg.Restic, logger)
 	if err != nil {
@@ -92,7 +158,7 @@ func executeBackup(
 
 	opts := buildBackupOptions(client, runtimeClient, cfg, hostname)
 
-	err = backup.Run(cmd.Context(), targets, opts, cmd.OutOrStdout())
+	err = backup.Run(cmd.Context(), targets, opts, reporter)
 	if err != nil {
 		return fmt.Errorf("run backup: %w", err)
 	}
