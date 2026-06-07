@@ -5,6 +5,7 @@ import (
 
 	"github.com/lazybytez/conba/internal/config"
 	"github.com/lazybytez/conba/internal/logging"
+	"github.com/lazybytez/conba/internal/report"
 	"github.com/lazybytez/conba/internal/restic"
 	"github.com/spf13/cobra"
 )
@@ -38,10 +39,12 @@ func runUnlock(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("unlock repository: %w", err)
 	}
 
-	_, err = fmt.Fprintln(cmd.OutOrStdout(), "Repository unlocked.")
-	if err != nil {
-		return fmt.Errorf("writing output: %w", err)
-	}
+	report.FromContext(ctx).Emit(report.Event{
+		Level:   report.LevelInfo,
+		Style:   report.StyleSuccess,
+		Name:    "unlock.done",
+		Message: "Repository unlocked.",
+	})
 
 	return nil
 }

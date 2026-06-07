@@ -5,6 +5,7 @@ import (
 
 	"github.com/lazybytez/conba/internal/config"
 	"github.com/lazybytez/conba/internal/logging"
+	"github.com/lazybytez/conba/internal/report"
 	"github.com/lazybytez/conba/internal/restic"
 	"github.com/spf13/cobra"
 )
@@ -38,10 +39,12 @@ func runInit(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("init repository: %w", err)
 	}
 
-	_, err = fmt.Fprintln(cmd.OutOrStdout(), "Repository initialized.")
-	if err != nil {
-		return fmt.Errorf("writing output: %w", err)
-	}
+	report.FromContext(ctx).Emit(report.Event{
+		Level:   report.LevelInfo,
+		Style:   report.StyleSuccess,
+		Name:    "init.done",
+		Message: "Repository initialized.",
+	})
 
 	return nil
 }
