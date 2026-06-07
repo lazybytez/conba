@@ -4,6 +4,7 @@ package e2e_test
 
 import (
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -137,10 +138,31 @@ func TestOutput_NoSecretInOutput(t *testing.T) {
 
 	dir := t.TempDir()
 	repoPath := filepath.Join(dir, "repo")
+	cacheDir := filepath.Join(dir, "restic-cache")
 
-	const secret = "super-secret-pw-9z8y7x"
+	err := os.MkdirAll(cacheDir, 0o700)
+	if err != nil {
+		t.Fatalf("create restic cache dir: %v", err)
+	}
 
-	writeConfig(t, dir, configOpts{ResticRepoPath: repoPath, ResticPassword: secret})
+	const (
+		passwordSecret = "super-secret-pw-9z8y7x"
+		envSecret      = "super-secret-env-4a5b6c"
+	)
+
+	// Set a restic.environment value too, so the assertion guards the env
+	// surface (e.g. an S3 secret key) as well as the password. PATH and the
+	// cache dir are required because a non-empty environment block replaces
+	// the inherited process environment for the restic subprocess.
+	writeConfig(t, dir, configOpts{
+		ResticRepoPath: repoPath,
+		ResticPassword: passwordSecret,
+		ResticEnvironment: map[string]string{
+			"PATH":                  os.Getenv("PATH"),
+			"RESTIC_CACHE_DIR":      cacheDir,
+			"AWS_SECRET_ACCESS_KEY": envSecret,
+		},
+	})
 
 	cfg := runConfig{Dir: dir, Stdin: nil, Env: nil}
 
@@ -156,9 +178,13 @@ func TestOutput_NoSecretInOutput(t *testing.T) {
 
 	for _, args := range invocations {
 		res := runConba(t, cfg, args...)
-		if strings.Contains(res.Stdout+res.Stderr, secret) {
-			t.Errorf("conba %v leaked the repo password in output:\nstdout=%s\nstderr=%s",
-				args, res.Stdout, res.Stderr)
+		combined := res.Stdout + res.Stderr
+
+		for _, leaked := range []string{passwordSecret, envSecret} {
+			if strings.Contains(combined, leaked) {
+				t.Errorf("conba %v leaked a secret (%q) in output:\nstdout=%s\nstderr=%s",
+					args, leaked, res.Stdout, res.Stderr)
+			}
 		}
 	}
 }
