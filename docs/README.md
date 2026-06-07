@@ -26,6 +26,8 @@ pipeline.
 - [Restoring](guides/restore.md) — restore volume and stream snapshots.
 - [Retention and filtering](guides/retention-and-filtering.md) — choose what
   gets backed up and how long snapshots are kept.
+- [Automation](guides/automation.md) — JSON output, exit codes, and the event
+  schema for Ansible, cron, and log monitoring.
 
 ## Concepts at a glance
 

@@ -14,6 +14,7 @@ dots with underscores, and prefixing `CONBA_`:
 | `restic.repository` | `CONBA_RESTIC_REPOSITORY` |
 | `restic.password` | `CONBA_RESTIC_PASSWORD` |
 | `logging.level` | `CONBA_LOGGING_LEVEL` |
+| `output.format` | `CONBA_OUTPUT_FORMAT` |
 | `discovery.opt_in_only` | `CONBA_DISCOVERY_OPT_IN_ONLY` |
 | `pre_backup_commands.enabled` | `CONBA_PRE_BACKUP_COMMANDS_ENABLED` |
 
@@ -46,7 +47,9 @@ pre_backup_commands:
 
 logging:
   level: "info"
-  format: "human"
+
+output:
+  format: "auto"
 ```
 
 ## Reference
@@ -124,4 +127,27 @@ volume backups proceed as usual.
 | Key | Type | Default | Values |
 |-----|------|---------|--------|
 | `level` | string | `info` | `debug`, `info`, `warn`, `error` |
-| `format` | string | `human` | `human`, `json` |
+
+The diagnostic logger writes to **stderr**. Its encoding (human or JSON)
+follows `output.format` below, so a single setting governs both the result
+stream and the logs.
+
+### `output`
+
+| Key | Type | Default | Values |
+|-----|------|---------|--------|
+| `format` | string | `auto` | `auto`, `text`, `json` |
+
+Controls how command results are rendered on **stdout**:
+
+- `text` — human-readable lines and tables (colored on a terminal).
+- `json` — a newline-delimited JSON (NDJSON) event stream, one object per
+  result plus a summary; ideal for log scraping and automation.
+- `auto` — `text` when stdout is a terminal, `json` otherwise (pipes,
+  containers, CI). This makes an interactively-run conba human-friendly and
+  a dispatched-in-a-container conba machine-friendly with no extra flags.
+
+Override per invocation with `--output text|json`. Color (text mode, on a
+terminal) is suppressed by `--no-color` or the `NO_COLOR` environment
+variable. See [Automation](guides/automation.md) for the event schema and
+exit codes.

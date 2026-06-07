@@ -1,7 +1,29 @@
 # Commands
 
-All commands read configuration as described in [Configuration](configuration.md)
-and accept the global flag `-c, --config <path>` (default `conba.yaml`).
+All commands read configuration as described in [Configuration](configuration.md).
+
+## Global flags
+
+| Flag | Description |
+|------|-------------|
+| `-c, --config <path>` | Config file path (default `conba.yaml`). |
+| `-o, --output text\|json` | Output format. Overrides `output.format`; defaults to `auto` (text on a terminal, JSON otherwise). |
+| `--no-color` | Disable colored text output (also honors `NO_COLOR`). |
+
+In **text** mode commands print human-readable lines and tables to stdout. In
+**json** mode they emit a newline-delimited JSON event stream to stdout (the
+diagnostic logger stays on stderr). Every command's events are listed with it
+below; the schema and exit codes are documented in
+[Automation](guides/automation.md).
+
+## Exit codes
+
+| Code | Meaning |
+|------|---------|
+| `0` | Success. |
+| `1` | Configuration or precondition error (invalid/missing config, repository locked or not initialised). |
+| `2` | Partial failure — at least one target succeeded and at least one failed (`backup`/`forget`/`run`). |
+| `3` | Total failure, or any unclassified fatal error. |
 
 | Command | Purpose | Dry-run |
 |---------|---------|---------|

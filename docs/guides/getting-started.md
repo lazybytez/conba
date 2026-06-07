@@ -19,7 +19,9 @@ retention:
 
 logging:
   level: info
-  format: human
+
+output:
+  format: auto   # text on a terminal, json when piped/containerized
 ```
 
 Prefer to keep the password out of the file? Drop `password` and export

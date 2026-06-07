@@ -32,7 +32,7 @@ timer, or CI/CD (the `run` command does a full init + backup + forget cycle in o
 | Retention management | Global policy with per-container overrides; wraps `restic forget --prune` |
 | Tagged snapshots | Every snapshot tagged with container name, ID, volume name, and hostname |
 | Environment overrides | All config values overridable via `CONBA_` prefixed env vars |
-| Structured logging | Human-readable or JSON output at configurable levels |
+| Human + machine output | Text for terminals, NDJSON event stream for automation (auto-detected), plus differentiated exit codes |
 
 ## Requirements
 
@@ -87,6 +87,7 @@ Full documentation lives in [`docs/`](docs/README.md):
 - **[Database dumps](docs/guides/database-dumps.md)** — consistent DB backups via `mysqldump` and friends.
 - **[Restoring](docs/guides/restore.md)** — restore volume and stream snapshots.
 - **[Retention and filtering](docs/guides/retention-and-filtering.md)** — scope and snapshot lifetime.
+- **[Automation](docs/guides/automation.md)** — JSON output, exit codes, and the event schema for Ansible/cron/monitoring.
 
 ## Commands
 
