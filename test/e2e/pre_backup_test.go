@@ -364,6 +364,10 @@ func TestPreBackup_FailedDumpCommand_FailsTargetCycleContinues(t *testing.T) {
 	backupResult := runConba(t, cfg, "backup")
 	requireFailure(t, backupResult, "conba backup")
 
+	if backupResult.ExitCode != 2 {
+		t.Errorf("exit code = %d, want 2 (partial failure)", backupResult.ExitCode)
+	}
+
 	snaps := resticSnapshots(t, repoPath)
 
 	failingSnaps := snapshotsForContainer(snaps, failingName)

@@ -156,7 +156,8 @@ var retentionKeepOneDaily = config.RetentionConfig{
 // must match the `mapstructure` tags on the Config struct.
 const configTemplate = `logging:
   level: info
-  format: human
+output:
+  format: text
 runtime:
   type: docker
   docker:
