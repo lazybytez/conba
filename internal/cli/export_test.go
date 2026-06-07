@@ -29,6 +29,8 @@ var (
 
 	PrintDryRun = printDryRun
 
+	ExitCode = exitCode
+
 	PrintPreBackupSummary = printPreBackupSummary
 
 	PrintSnapshots      = printSnapshots
