@@ -56,14 +56,14 @@ func (c *Client) runWithStdin(ctx context.Context, args []string, stdin io.Reade
 	if err != nil {
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) {
-			stderr := exitErr.Stderr
+			stderr := sanitizeStderr(exitErr.Stderr)
 			c.logger.Warn("restic stderr",
-				zap.String("stderr", string(stderr)),
+				zap.String("stderr", stderr),
 				zap.String("command", args[0]),
 			)
 
 			return nil, fmt.Errorf("%w: %s exited with code %d: %s",
-				ErrResticFailed, args[0], exitErr.ExitCode(), bytes.TrimSpace(stderr))
+				ErrResticFailed, args[0], exitErr.ExitCode(), stderr)
 		}
 
 		return nil, fmt.Errorf("executing restic %s: %w", args[0], err)
@@ -91,13 +91,14 @@ func (c *Client) runStreaming(ctx context.Context, args []string, stdout io.Writ
 	if err != nil {
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) {
+			sanitized := sanitizeStderr(stderr.Bytes())
 			c.logger.Warn("restic stderr",
-				zap.String("stderr", stderr.String()),
+				zap.String("stderr", sanitized),
 				zap.String("command", args[0]),
 			)
 
 			return fmt.Errorf("%w: %s exited with code %d: %s",
-				ErrResticFailed, args[0], exitErr.ExitCode(), bytes.TrimSpace(stderr.Bytes()))
+				ErrResticFailed, args[0], exitErr.ExitCode(), sanitized)
 		}
 
 		return fmt.Errorf("executing restic %s: %w", args[0], err)

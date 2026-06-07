@@ -9,6 +9,7 @@ import (
 	"github.com/lazybytez/conba/internal/logging"
 	"github.com/lazybytez/conba/internal/restic"
 	"github.com/lazybytez/conba/internal/support/format"
+	"github.com/lazybytez/conba/internal/support/redact"
 	"github.com/spf13/cobra"
 )
 
@@ -37,10 +38,11 @@ func runStatus(cmd *cobra.Command, _ []string) error {
 	}
 
 	out := cmd.OutOrStdout()
+	repo := redact.Credentials(cfg.Restic.Repository)
 
 	snapshots, err := client.Snapshots(ctx, nil)
 	if err != nil {
-		return handleStatusError(out, cfg.Restic.Repository, err)
+		return handleStatusError(out, repo, err)
 	}
 
 	stats, err := client.Stats(ctx)
@@ -48,7 +50,7 @@ func runStatus(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("get repository stats: %w", err)
 	}
 
-	return printStatus(out, cfg.Restic.Repository, snapshots, stats)
+	return printStatus(out, repo, snapshots, stats)
 }
 
 func handleStatusError(out io.Writer, repo string, err error) error {
