@@ -7,7 +7,7 @@
 go/build:
 	$(DOCKER_RUN) -e CGO_ENABLED=0 $(GO_IMAGE) \
 		go build -buildvcs=false \
-			-ldflags "-X $(MODULE)/internal/build.Version=$(VERSION) -X $(MODULE)/internal/build.CommitSHA=$(COMMIT_SHA) -X $(MODULE)/internal/build.ResticVersion=$(RESTIC_VERSION)" \
+			-ldflags "-X $(MODULE)/internal/build.Version=$(VERSION) -X $(MODULE)/internal/build.CommitSHA=$(COMMIT_SHA) -X $(MODULE)/internal/build.RecommendedResticVersion=$(RESTIC_VERSION)" \
 			-o bin/conba ./cmd/conba
 
 # Build the test image containing Go toolchain and restic binary

@@ -40,7 +40,7 @@ RUN go mod download && go mod verify
 
 COPY --link . .
 RUN CGO_ENABLED=0 go build -buildvcs=false \
-    -ldflags "-X github.com/lazybytez/conba/internal/build.Version=${app_version} -X github.com/lazybytez/conba/internal/build.CommitSHA=${build_commit_sha} -X github.com/lazybytez/conba/internal/build.ResticVersion=${restic_version}" \
+    -ldflags "-X github.com/lazybytez/conba/internal/build.Version=${app_version} -X github.com/lazybytez/conba/internal/build.CommitSHA=${build_commit_sha} -X github.com/lazybytez/conba/internal/build.RecommendedResticVersion=${restic_version}" \
     -o /build/conba ./cmd/conba
 
 # Stage 3: Minimal runtime image

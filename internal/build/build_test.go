@@ -51,11 +51,11 @@ func TestComputeVersionString(t *testing.T) {
 	}
 }
 
-func TestResticVersion(t *testing.T) {
+func TestRecommendedResticVersion(t *testing.T) {
 	t.Parallel()
 
-	if build.ResticVersion == "" {
-		t.Fatal("ResticVersion is empty")
+	if build.RecommendedResticVersion == "" {
+		t.Fatal("RecommendedResticVersion is empty")
 	}
 }
 

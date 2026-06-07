@@ -29,7 +29,8 @@ var (
 
 	PrintDryRun = printDryRun
 
-	ExitCode = exitCode
+	ExitCode    = exitCode
+	EmitVersion = emitVersion
 
 	PrintPreBackupSummary = printPreBackupSummary
 
