@@ -103,7 +103,7 @@ func TestNewRootCommand_HasVersionSubcommand(t *testing.T) {
 	var found bool
 
 	for _, sub := range cmd.Commands() {
-		if sub.Use == "version" {
+		if sub.Use == cmdVersion {
 			found = true
 
 			break
