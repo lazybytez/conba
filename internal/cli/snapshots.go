@@ -9,6 +9,7 @@ import (
 	"github.com/lazybytez/conba/internal/backup"
 	"github.com/lazybytez/conba/internal/config"
 	"github.com/lazybytez/conba/internal/logging"
+	"github.com/lazybytez/conba/internal/report"
 	"github.com/lazybytez/conba/internal/restic"
 	"github.com/lazybytez/conba/internal/support/format"
 	"github.com/spf13/cobra"
@@ -79,7 +80,14 @@ func runSnapshots(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("list snapshots: %w", err)
 	}
 
-	out := cmd.OutOrStdout()
+	reporter := report.FromContext(ctx)
+	if reporter.Mode() == report.ModeJSON {
+		emitSnapshots(reporter, snapshots)
+
+		return nil
+	}
+
+	out := reporter.Out()
 	if len(snapshots) == 0 {
 		_, printErr := fmt.Fprintln(out, "No snapshots found.")
 		if printErr != nil {
@@ -90,6 +98,31 @@ func runSnapshots(cmd *cobra.Command, _ []string) error {
 	}
 
 	return printSnapshots(out, snapshots)
+}
+
+// emitSnapshots emits one snapshot event per row plus a snapshots.summary
+// count, for json output.
+func emitSnapshots(reporter report.Reporter, snapshots []restic.Snapshot) {
+	for _, snap := range snapshots {
+		reporter.Emit(report.Event{
+			Level: report.LevelInfo,
+			Name:  "snapshot",
+			Fields: []report.Field{
+				report.F("id", snap.ID),
+				report.F("time", format.Time(snap.Time.UTC())),
+				report.F("container", extractTag(snap.Tags, tagPrefixContainer)),
+				report.F("volume", extractTag(snap.Tags, tagPrefixVolume)),
+				report.F("hostname", extractTag(snap.Tags, tagPrefixHostname)),
+				report.F("tags", snap.Tags),
+			},
+		})
+	}
+
+	reporter.Emit(report.Event{
+		Level:  report.LevelInfo,
+		Name:   "snapshots.summary",
+		Fields: []report.Field{report.F("count", len(snapshots))},
+	})
 }
 
 // readSnapshotFilters reads the user-provided filter flags into a struct.

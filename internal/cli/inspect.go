@@ -8,6 +8,7 @@ import (
 	"github.com/lazybytez/conba/internal/discovery"
 	"github.com/lazybytez/conba/internal/filter"
 	"github.com/lazybytez/conba/internal/logging"
+	"github.com/lazybytez/conba/internal/report"
 	"github.com/spf13/cobra"
 )
 
@@ -44,9 +45,58 @@ func runInspect(cmd *cobra.Command, _ []string) error {
 
 	result := filter.Apply(targets, cfg.Discovery)
 
+	reporter := report.FromContext(ctx)
+	if reporter.Mode() == report.ModeJSON {
+		emitInspect(reporter, result)
+
+		return nil
+	}
+
 	return printResultWithFeatureFlag(
-		cmd.OutOrStdout(), result, cfg.PreBackupCommands.Enabled,
+		reporter.Out(), result, cfg.PreBackupCommands.Enabled,
 	)
+}
+
+// emitInspect emits one inspect.target event per included and excluded
+// target plus an inspect.summary, for json output.
+func emitInspect(reporter report.Reporter, result filter.Result) {
+	for _, target := range result.Included {
+		reporter.Emit(report.Event{
+			Level: report.LevelInfo,
+			Name:  "inspect.target",
+			Fields: []report.Field{
+				report.F("container", target.Container.Name),
+				report.F("volume", target.Mount.Name),
+				report.F("destination", target.Mount.Destination),
+				report.F("type", target.Mount.Type),
+				report.F("included", true),
+			},
+		})
+	}
+
+	for _, excl := range result.Excluded {
+		reporter.Emit(report.Event{
+			Level: report.LevelInfo,
+			Name:  "inspect.target",
+			Fields: []report.Field{
+				report.F("container", excl.Target.Container.Name),
+				report.F("volume", excl.Target.Mount.Name),
+				report.F("destination", excl.Target.Mount.Destination),
+				report.F("type", excl.Target.Mount.Type),
+				report.F("included", false),
+				report.F("reason", excl.Reason),
+			},
+		})
+	}
+
+	reporter.Emit(report.Event{
+		Level: report.LevelInfo,
+		Name:  "inspect.summary",
+		Fields: []report.Field{
+			report.F("included", len(result.Included)),
+			report.F("excluded", len(result.Excluded)),
+		},
+	})
 }
 
 func printResultWithFeatureFlag(
