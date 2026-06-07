@@ -11,9 +11,13 @@ import "testing"
 func TestVersion_PrintsBuildInfo(t *testing.T) {
 	cfg := runConfig{Dir: t.TempDir(), Stdin: nil, Env: nil}
 
-	result := runConba(t, cfg, "version")
-	requireSuccess(t, result, "conba version")
+	result := runConba(t, cfg, "version", "--output", "text")
+	requireSuccess(t, result, "conba version --output text")
 	requireStdoutContains(t, result, "conba")
 	requireStdoutContains(t, result, "go:")
 	requireStdoutContains(t, result, "restic:")
+
+	jsonResult := runConba(t, cfg, "version", "--output", "json")
+	requireSuccess(t, jsonResult, "conba version --output json")
+	requireEvent(t, jsonResult.Stdout, "version")
 }
