@@ -5,3 +5,6 @@ var ParseDiffJSON = parseDiffJSON
 
 // ParseResticVersion exposes the unexported restic version-line parser.
 var ParseResticVersion = parseResticVersion
+
+// PlausibleVersionToken exposes the version-token validity predicate.
+var PlausibleVersionToken = plausibleVersionToken
