@@ -309,8 +309,23 @@ conba snapshots           # List snapshots
 conba diff <a> <b>        # Show file differences between two snapshots
 conba verify              # Verify restic repository integrity
 conba verify --read-data  # Full data verification (slow)
-conba version             # Print version info
+conba version             # Print version info and check the installed restic against the recommended one
 ```
+
+### Restic version check
+
+The recommended restic is the version conba is built and tested against,
+pinned as `RESTIC_VERSION` in the `Makefile` and bundled in the container
+image. The installed one is probed by running `version` on the binary
+named by `restic.binary` in `conba.yaml`, or on `restic` from `PATH` when
+no config loads. A missing or broken config never fails the command,
+since `conba version` has to stay usable on an unconfigured host. Conba
+warns when the two differ in major or minor version, because restic's
+behavior and output can change between minor releases, and it warns when
+no restic is found or when the binary runs but its version output cannot
+be read. Patch differences pass without a warning. A binary built without
+the version ldflags (a plain `go build` rather than `make build`) reports
+`recommended unknown` and the comparison is skipped.
 
 ## Development
 
