@@ -15,7 +15,7 @@ import (
 	"github.com/lazybytez/conba/internal/restic"
 )
 
-// probeEnvVar is the marker the environment-isolation fixture looks for; it
+// probeEnvVar is the marker the environment-isolation fixture looks for. It
 // must never reach the probed binary.
 const probeEnvVar = "CONBA_PROBE_LEAK"
 
@@ -144,7 +144,7 @@ func TestVersionsCompatible(t *testing.T) {
 	}
 }
 
-// TestDetectVersion exercises the real restic binary resolved from PATH; it
+// TestDetectVersion exercises the real restic binary resolved from PATH. It
 // skips when restic is not installed.
 func TestDetectVersion(t *testing.T) {
 	t.Parallel()

@@ -92,7 +92,7 @@ func TestVersionCommand_JSONOutput(t *testing.T) {
 
 	out := runVersionThroughRoot(t, "json")
 
-	// The version event is the first NDJSON line; a mismatch warning, if any,
+	// The version event is the first NDJSON line. A mismatch warning, if any,
 	// follows on its own line.
 	firstLine, _, _ := strings.Cut(strings.TrimSpace(out), "\n")
 
