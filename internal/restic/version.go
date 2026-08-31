@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // ErrResticVersionParse indicates restic's `version` output did not match the
@@ -17,11 +18,29 @@ var ErrResticVersionParse = errors.New("could not parse restic version")
 // deciding restic compatibility (major and minor; patch is ignored).
 const majorMinorParts = 2
 
+// versionLineFields is the number of fields restic's version line must have
+// before the version token can be read from it.
+const versionLineFields = 2
+
+// maxVersionTokenLen bounds the version token accepted from the probed
+// binary, with room for distro patch suffixes and git-describe strings.
+const maxVersionTokenLen = 64
+
+// probeWaitDelay bounds how long Wait blocks once the probed binary has exited
+// or the context is done, so a descendant holding stdout cannot outlive it.
+const probeWaitDelay = time.Second
+
 // DetectVersion runs `<binary> version` and returns the restic version it
 // reports (for example "0.18.1"). binary is the restic executable name or
-// path; callers pass the configured value or the default "restic".
+// path; callers pass the configured value or the default "restic". The probe
+// runs with an empty environment so repository secrets stay out of it; the
+// binary name is still resolved against the caller's PATH.
 func DetectVersion(ctx context.Context, binary string) (string, error) {
-	out, err := exec.CommandContext(ctx, binary, "version").Output()
+	cmd := exec.CommandContext(ctx, binary, "version")
+	cmd.Env = []string{}
+	cmd.WaitDelay = probeWaitDelay
+
+	out, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("running %q version: %w", binary, err)
 	}
@@ -38,11 +57,33 @@ func DetectVersion(ctx context.Context, binary string) (string, error) {
 // e.g. "restic 0.18.1 compiled with go1.25.1 on linux/arm64" -> "0.18.1".
 func parseResticVersion(output string) string {
 	fields := strings.Fields(output)
-	if len(fields) >= majorMinorParts && strings.EqualFold(fields[0], "restic") {
-		return fields[1]
+	if len(fields) < versionLineFields || !strings.EqualFold(fields[0], "restic") {
+		return ""
 	}
 
-	return ""
+	if !plausibleVersionToken(fields[1]) {
+		return ""
+	}
+
+	return fields[1]
+}
+
+// plausibleVersionToken reports whether a token read from the probed binary's
+// stdout can be rendered as a version: bounded length, printable ASCII only.
+// Rejecting everything else keeps terminal escapes and control characters from
+// a hostile binary out of the output.
+func plausibleVersionToken(token string) bool {
+	if token == "" || len(token) > maxVersionTokenLen {
+		return false
+	}
+
+	for _, char := range token {
+		if char <= ' ' || char > '~' {
+			return false
+		}
+	}
+
+	return true
 }
 
 // VersionsCompatible reports whether two restic version strings share the
