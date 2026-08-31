@@ -29,8 +29,9 @@ var (
 
 	PrintDryRun = printDryRun
 
-	ExitCode    = exitCode
-	EmitVersion = emitVersion
+	ExitCode                  = exitCode
+	EmitVersion               = emitVersion
+	ResolveVersionProbeBinary = resolveVersionProbeBinary
 
 	PrintPreBackupSummary = printPreBackupSummary
 

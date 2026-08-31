@@ -12,10 +12,8 @@ var Version = "edge" //nolint:gochecknoglobals // ldflags requires package-level
 // Defaults to "unknown" when not set at build time.
 var CommitSHA = "unknown" //nolint:gochecknoglobals // ldflags requires package-level var
 
-// RecommendedResticVersion is the restic version conba is built and tested
-// against (pinned and bundled in the container image). The version command
-// compares it against the actually-installed restic. Injected via ldflags in
-// container builds; defaults to "unknown" for local builds.
+// RecommendedResticVersion is the restic version conba is built and tested against.
+// Injected via ldflags in container builds; defaults to "unknown" otherwise.
 var RecommendedResticVersion = "unknown" //nolint:gochecknoglobals // ldflags requires package-level var
 
 // FormatVersion returns a human-readable version string for the given
