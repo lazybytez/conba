@@ -15,7 +15,7 @@ import (
 var ErrResticVersionParse = errors.New("could not parse restic version")
 
 // majorMinorParts is the number of leading dotted components compared when
-// deciding restic compatibility (major and minor; patch is ignored).
+// deciding restic compatibility (major and minor, not patch).
 const majorMinorParts = 2
 
 // versionLineFields is the number of fields restic's version line must have
@@ -32,8 +32,8 @@ const probeWaitDelay = time.Second
 
 // DetectVersion runs `<binary> version` and returns the restic version it
 // reports (for example "0.18.1"). binary is the restic executable name or
-// path; callers pass the configured value or the default "restic". The probe
-// runs with an empty environment so repository secrets stay out of it; the
+// path. Callers pass the configured value or the default "restic". The probe
+// runs with an empty environment so repository secrets stay out of it. The
 // binary name is still resolved against the caller's PATH.
 func DetectVersion(ctx context.Context, binary string) (string, error) {
 	cmd := exec.CommandContext(ctx, binary, "version")
@@ -87,8 +87,8 @@ func plausibleVersionToken(token string) bool {
 }
 
 // VersionsCompatible reports whether two restic version strings share the
-// same major and minor component; patch differences are treated as
-// compatible. The first result is the compatibility verdict; the second is
+// same major and minor component. Patch differences are treated as
+// compatible. The first result is the compatibility verdict. The second is
 // false when either version cannot be parsed, in which case the caller must
 // not assert (in)compatibility.
 func VersionsCompatible(a, b string) (bool, bool) {

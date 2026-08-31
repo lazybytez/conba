@@ -44,7 +44,7 @@ func runVersion(cmd *cobra.Command, _ []string) error {
 	// version skips config loading (and thus the root reporter), so it
 	// resolves the output mode from the inherited --output/--no-color flags
 	// directly. The flags are absent when RunE is invoked on a detached
-	// command; flagString then yields "" and the mode falls back to auto.
+	// command, where flagString yields "" and the mode falls back to auto.
 	mode, color := report.Resolve(flagString(cmd.Flags(), "output"), "auto", os.Stdout)
 	if flagBool(cmd.Flags(), "no-color") {
 		color = false
@@ -80,8 +80,8 @@ func resolveVersionProbeBinary(cmd *cobra.Command) string {
 // warning event: restic missing, unrunnable, unreadable, or a major/minor
 // mismatch.
 // binary reaches the terminal quoted because it is an untrusted path from the
-// config file; installed is rendered plainly, having already been validated
-// where it was parsed out of the probed binary's stdout.
+// config file. The installed version is rendered plainly, having already been
+// validated where it was parsed out of the probed binary's stdout.
 func emitVersion(
 	reporter report.Reporter,
 	binary, recommended, installed string,
