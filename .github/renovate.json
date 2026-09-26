@@ -1,8 +1,41 @@
 {
     "$schema": "https://docs.renovatebot.com/renovate-schema.json",
     "extends": [
-        "config:recommended"
+        "config:recommended",
+        "helpers:pinGitHubActionDigests"
     ],
     "labels": ["C5 - dependencies"],
-    "dependencyDashboardApproval": true
+    "reviewers": ["team:oss-maintainers"],
+    "dependencyDashboardApproval": true,
+    "ignorePaths": ["**/vendor/**"],
+    "postUpdateOptions": ["gomodTidy"],
+    "customManagers": [
+        {
+            "customType": "regex",
+            "description": "Versions and images annotated with a renovate comment",
+            "managerFilePatterns": ["/(^|/)Makefile$/", "/\\.mk$/", "/(^|/)Containerfile$/"],
+            "matchStrings": [
+                "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)(?:\\s+versioning=(?<versioning>\\S+))?\\s*\\n\\s*(?:ARG\\s+)?\\w+\\s*\\??=\\s*(?<currentValue>[^\\s:]+)\\s",
+                "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)(?:\\s+versioning=(?<versioning>\\S+))?\\s*\\n\\s*\\w+\\s*\\??=\\s*[^\\s:]+:(?<currentValue>\\S+)"
+            ]
+        }
+    ],
+    "packageRules": [
+        {
+            "description": "Every FROM in the Containerfile takes its version from an annotated ARG",
+            "matchManagers": ["dockerfile"],
+            "matchFileNames": ["Containerfile"],
+            "enabled": false
+        },
+        {
+            "description": "The restic version is set in the Containerfile and the Makefile",
+            "matchDepNames": ["docker.io/restic/restic"],
+            "groupName": "restic"
+        },
+        {
+            "description": "The Go image is set in the Containerfile and the Makefile",
+            "matchDepNames": ["docker.io/library/golang"],
+            "groupName": "golang"
+        }
+    ]
 }
