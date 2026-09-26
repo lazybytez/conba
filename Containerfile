@@ -1,7 +1,11 @@
 # Global ARGs: single source of truth for base image versions
+# renovate: datasource=docker depName=docker.io/library/golang
 ARG go_version=1.26
+# renovate: datasource=docker depName=docker.io/library/alpine
 ARG alpine_version=3.23
+# renovate: datasource=docker depName=docker.io/restic/restic
 ARG restic_version=0.18.1
+# renovate: datasource=docker depName=docker.io/library/docker
 ARG docker_cli_version=28.0.4
 
 # Stage 0a: Source the pinned restic binary
@@ -19,6 +23,7 @@ COPY --from=restic --link /usr/bin/restic /usr/bin/restic
 COPY --from=docker-cli --link /usr/local/bin/docker /usr/local/bin/docker
 COPY --from=docker-cli --link /usr/local/libexec/docker/cli-plugins/ /usr/local/libexec/docker/cli-plugins/
 
+# renovate: datasource=go depName=gotest.tools/gotestsum
 ARG gotestsum_version=v1.13.0
 
 RUN go install gotest.tools/gotestsum@${gotestsum_version} && \
