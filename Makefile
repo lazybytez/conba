@@ -11,7 +11,7 @@ GO_IMAGE          ?= golang:1.26
 RESTIC_IMAGE      ?= restic/restic:$(RESTIC_VERSION)
 TEST_IMAGE        ?= conba-test:latest
 # renovate: datasource=docker depName=docker.io/golangci/golangci-lint
-LINT_IMAGE        ?= golangci/golangci-lint:v2.11.4
+LINT_IMAGE        ?= golangci/golangci-lint:v2.14.0
 DOCKER_EXECUTABLE ?= docker
 IMAGE_NAME        ?= ghcr.io/lazybytez/conba
 IMAGE_TAG         ?= edge
