@@ -38,7 +38,7 @@ services:
             - /tmp:noexec
 
     conba-e2e-mysql:
-        image: docker.io/library/mysql:8.0.45
+        image: docker.io/library/mysql:8.4.11
         container_name: conba-e2e-mysql
         depends_on:
             conba-e2e-seed:
