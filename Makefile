@@ -5,7 +5,7 @@ MODULE            ?= github.com/lazybytez/conba
 VERSION           ?= edge
 COMMIT_SHA        ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 # renovate: datasource=docker depName=docker.io/restic/restic
-RESTIC_VERSION    ?= 0.18.1
+RESTIC_VERSION    ?= 0.19.1
 # renovate: datasource=docker depName=docker.io/library/golang
 GO_IMAGE          ?= golang:1.26
 RESTIC_IMAGE      ?= restic/restic:$(RESTIC_VERSION)
