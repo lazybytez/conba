@@ -7,7 +7,7 @@ COMMIT_SHA        ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unkn
 # renovate: datasource=docker depName=docker.io/restic/restic
 RESTIC_VERSION    ?= 0.18.1
 # renovate: datasource=docker depName=docker.io/library/golang
-GO_IMAGE          ?= golang:1.26
+GO_IMAGE          ?= golang:1.27
 RESTIC_IMAGE      ?= restic/restic:$(RESTIC_VERSION)
 TEST_IMAGE        ?= conba-test:latest
 # renovate: datasource=docker depName=docker.io/golangci/golangci-lint

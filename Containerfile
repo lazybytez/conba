@@ -1,6 +1,6 @@
 # Global ARGs: single source of truth for base image versions
 # renovate: datasource=docker depName=docker.io/library/golang
-ARG go_version=1.26
+ARG go_version=1.27
 # renovate: datasource=docker depName=docker.io/library/alpine
 ARG alpine_version=3.24
 # renovate: datasource=docker depName=docker.io/restic/restic
