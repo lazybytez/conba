@@ -6,7 +6,7 @@ ARG alpine_version=3.24
 # renovate: datasource=docker depName=docker.io/restic/restic
 ARG restic_version=0.18.1
 # renovate: datasource=docker depName=docker.io/library/docker
-ARG docker_cli_version=28.5.2
+ARG docker_cli_version=29.8.1
 
 # Stage 0a: Source the pinned restic binary
 FROM docker.io/restic/restic:${restic_version} AS restic
