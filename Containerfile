@@ -4,7 +4,7 @@ ARG go_version=1.26
 # renovate: datasource=docker depName=docker.io/library/alpine
 ARG alpine_version=3.24
 # renovate: datasource=docker depName=docker.io/restic/restic
-ARG restic_version=0.18.1
+ARG restic_version=0.19.1
 # renovate: datasource=docker depName=docker.io/library/docker
 ARG docker_cli_version=28.5.2
 
